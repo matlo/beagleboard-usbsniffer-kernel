@@ -1224,7 +1224,7 @@ config LEDS_CPU
 	  will overrule the CPU usage LED.
 
 config ALIGNMENT_TRAP
-	bool
+	bool "Enable alignment trap"
 	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
 	help
