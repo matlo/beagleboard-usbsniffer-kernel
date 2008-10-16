@@ -84,6 +84,8 @@ obj-$(CONFIG_ARCH_OMAP2420)		+= omap_hwmod_2420_data.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= omap_hwmod_2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
 
+obj-$(CONFIG_OMAP_PM_SRF)		+= resource34xx.o
+
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
 
