@@ -40,6 +40,8 @@
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
 
+#include <plat/resource.h>
+
 #include <asm/tlbflush.h>
 
 #include "cm.h"
@@ -1003,6 +1005,10 @@ void omap3_pm_off_mode_enable(int enable)
 	omap3_cpuidle_update_states();
 #endif
 
+#ifdef CONFIG_OMAP_PM_SRF
+	if (resource_refresh())
+		printk(KERN_ERR "Error: could not refresh resources\n");
+#endif
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
 		set_pwrdm_state(pwrst->pwrdm, state);
