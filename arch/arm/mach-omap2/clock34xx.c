@@ -513,5 +513,10 @@ static int omap3_select_table_rate(struct clk *clk, unsigned long rate)
 		clk_set_rate(dpll3_clk, prcm_vdd->rate * l3_div);
 		curr_vdd2_prcm_set = prcm_vdd;
 	}
+
+#ifdef CONFIG_PM
+	omap3_save_scratchpad_contents();
+#endif
+
 	return 0;
 }
