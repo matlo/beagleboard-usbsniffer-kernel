@@ -24,6 +24,7 @@
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
+#include <plat/omap-pm.h>
 
 #include "clock.h"
 #include "clock34xx.h"
