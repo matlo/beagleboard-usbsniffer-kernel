@@ -191,6 +191,7 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 	struct cpufreq_freqs freqs_notify;
 #endif
 	struct shared_resource *resp;
+	int ret;
 
 	if (res == VDD1_OPP)
 		resp = vdd1_resp;
@@ -250,7 +251,9 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 			ID_OPP_NO(l3_opps[target_level].opp_id);
 		if (resp->curr_level > target_level) {
 			/* Scale Frequency and then voltage */
-			clk_set_rate(vdd2_clk, l3_freq);
+			ret = clk_set_rate(vdd2_clk, l3_freq);
+			if (ret)
+				return ret;
 #ifdef CONFIG_OMAP_SMARTREFLEX
 			sr_voltagescale_vcbypass(t_opp,
 					l3_opps[target_level].vsel);
@@ -261,7 +264,18 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 			sr_voltagescale_vcbypass(t_opp,
 					l3_opps[target_level].vsel);
 #endif
-			clk_set_rate(vdd2_clk, l3_freq);
+			ret = clk_set_rate(vdd2_clk, l3_freq);
+			if (ret) {
+#ifdef CONFIG_OMAP_SMARTREFLEX
+				/* Setting clock failed, revert voltage */
+				t_opp = ID_VDD(VDD2_OPP) |
+					ID_OPP_NO(l3_opps[resp->curr_level].
+							opp_id);
+				sr_voltagescale_vcbypass(t_opp,
+					l3_opps[resp->curr_level].vsel);
+#endif
+				return ret;
+			}
 		}
 		resp->curr_level = curr_vdd2_prcm_set->opp_id;
 	}
