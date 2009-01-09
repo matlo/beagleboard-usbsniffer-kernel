@@ -79,4 +79,12 @@ int resource_request(const char *name, struct device *dev,
 int resource_release(const char *name, struct device *dev);
 int resource_get_level(const char *name);
 
+extern int resource_set_opp_level(int res, u32 target_level, int flags);
+extern int resource_access_opp_lock(int res, int delta);
+#define resource_lock_opp(res) resource_access_opp_lock(res, 1)
+#define resource_unlock_opp(res) resource_access_opp_lock(res, -1)
+#define resource_get_opp_lock(res) resource_access_opp_lock(res, 0)
+
+#define OPP_IGNORE_LOCK 0x1
+ 
 #endif /* __ARCH_ARM_OMAP_RESOURCE_H */
