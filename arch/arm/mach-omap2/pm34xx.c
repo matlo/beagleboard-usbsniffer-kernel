@@ -45,6 +45,7 @@
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 
+#include "smartreflex.h"
 #include "prm.h"
 #include "pm.h"
 #include "sdrc.h"
@@ -382,6 +383,10 @@ void omap_sram_idle(void)
 		return;
 	}
 
+	/* Disable smartreflex before entering WFI */
+	disable_smartreflex(SR1);
+	disable_smartreflex(SR2);
+
 	pwrdm_pre_transition();
 
 	/* NEON control */
@@ -503,6 +508,10 @@ void omap_sram_idle(void)
 		prm_clear_mod_reg_bits(OMAP3430_EN_IO, WKUP_MOD, PM_WKEN);
 		omap3_disable_io_chain();
 	}
+
+	/* Enable smartreflex after WFI */
+	enable_smartreflex(SR1);
+	enable_smartreflex(SR2);
 
 	pwrdm_post_transition();
 
