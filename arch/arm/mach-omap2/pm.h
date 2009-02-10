@@ -40,6 +40,15 @@ inline void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
 }
 #endif
 
+struct prm_setup_times {
+	u16 clksetup;
+	u16 voltsetup_time1;
+	u16 voltsetup_time2;
+	u16 voltoffset;
+	u16 voltsetup2;
+};
+extern void omap3_set_prm_setup_times(struct prm_setup_times *setup_times);
+
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);
 
