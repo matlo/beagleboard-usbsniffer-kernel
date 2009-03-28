@@ -756,6 +756,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	ai_sys += 1;
 
+	printk("Alignment trap in kernel: %s (%d) PC=0x%08lx Instr=0x%0*lx "
+	       "Address=0x%08lx FSR 0x%03x\n", current->comm,
+	       task_pid_nr(current), instrptr,
+	       thumb_mode(regs) ? 4 : 8,
+	       thumb_mode(regs) ? tinstr : instr,
+	       addr, fsr);
+
  fixup:
 
 	regs->ARM_pc += isize;
