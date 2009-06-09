@@ -35,6 +35,7 @@
 #include "prm.h"
 #include "cm.h"
 #include "pm.h"
+#include "prm-regbits-34xx.h"
 
 int omap2_pm_debug;
 
@@ -552,7 +553,6 @@ static int option_set(void *data, u64 val)
 
 	if (option == &enable_off_mode)
 		omap3_pm_off_mode_enable(val);
-
 	return 0;
 }
 
@@ -606,6 +606,15 @@ static int __init pm_dbg_init(void)
 				   &sleep_while_idle, &pm_dbg_option_fops);
 	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUGO, d,
 				   &wakeup_timer_seconds, &pm_dbg_option_fops);
+
+	/* Only enable for >= ES2.1 . Going to 0V on anything under
+	 * ES2.1 will eventually cause a crash */
+	if (omap_rev() > OMAP3430_REV_ES2_0)
+		(void) debugfs_create_file("voltage_off_while_idle",
+					   S_IRUGO | S_IWUGO, d,
+					   &voltage_off_while_idle,
+					   &pm_dbg_option_fops);
+
 	pm_dbg_init_done = 1;
 
 	return 0;
