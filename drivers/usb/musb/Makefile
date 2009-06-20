@@ -74,4 +74,7 @@ endif
 
 ifeq ($(CONFIG_USB_MUSB_DEBUG),y)
 	EXTRA_CFLAGS += -DDEBUG
+	ifeq ($(CONFIG_PROC_FS),y)
+	musb_hdrc-objs          += musb_procfs.o
+	endif
 endif
