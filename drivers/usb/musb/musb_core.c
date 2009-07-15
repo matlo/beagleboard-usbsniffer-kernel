@@ -190,6 +190,27 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 	}
 }
 
+static inline void musb_fifo_read_unaligned(void __iomem *fifo,
+						void __iomem *buf, u16 len)
+{
+	u32		val;
+	int		i;
+
+	if (len > 4) {
+		for (i = 0; i < (len >> 2); i++) {
+			val = musb_readl(fifo, 0);
+			memcpy(buf, &val, 4);
+			buf += 4;
+		}
+		len %= 4;
+	}
+	if (len > 0) {
+		/* Read the rest 1 - 3 bytes from FIFO */
+		val = musb_readl(fifo, 0);
+		memcpy(buf, &val, len);
+	}
+}
+
 /*
  * Unload an endpoint's FIFO
  */
@@ -200,8 +221,13 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
 			'R', hw_ep->epnum, fifo, len, dst);
 
-	/* we can't assume unaligned writes work */
-	if (likely((0x01 & (unsigned long) dst) == 0)) {
+	if (cpu_is_omap3517() || cpu_is_omap3505()) {
+		/* Bytewise or wordwise data read from FIFO is corrupted
+		 * if AM3517EVM is configured as gadget */
+		musb_fifo_read_unaligned(fifo, dst, len);
+		return;
+	} else if (likely((0x01 & (unsigned long) dst) == 0)) {
+		/* we can't assume unaligned writes work */
 		u16	index = 0;
 
 		/* best case is 32bit-aligned destination address */
