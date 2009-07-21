@@ -827,7 +827,8 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 			csr = musb_readw(hw_ep->regs, MUSB_RXCSR);
 
 			if (csr & (MUSB_RXCSR_RXPKTRDY
-					| MUSB_RXCSR_DMAENAB
+				| (is_cppi_enabled() || is_cppi41_enabled())
+					? 0 : MUSB_RXCSR_DMAENAB
 					| MUSB_RXCSR_H_REQPKT))
 				ERR("broken !rx_reinit, ep%d csr %04x\n",
 						hw_ep->epnum, csr);
@@ -1570,9 +1571,12 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			| MUSB_RXCSR_H_AUTOREQ
 			| MUSB_RXCSR_AUTOCLEAR
 			| MUSB_RXCSR_RXPKTRDY);
+
+		if (is_cppi_enabled() || is_cppi41_enabled())
+			val |= MUSB_RXCSR_DMAENAB;
+
 		musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-#ifdef CONFIG_USB_INVENTRA_DMA
 		if (usb_pipeisoc(pipe)) {
 			struct usb_iso_packet_descriptor *d;
 
@@ -1587,8 +1591,25 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 
 			if (++qh->iso_idx >= urb->number_of_packets)
 				done = true;
-			else
+			else if (is_cppi_enabled() || is_cppi41_enabled()) {
+				struct dma_controller	*c;
+				void *buf;
+				u32 length, ret;
+
+				c = musb->dma_controller;
+				buf = (void *)
+					urb->iso_frame_desc[qh->iso_idx].offset
+					+ (u32)urb->transfer_dma;
+
+				length =
+					urb->iso_frame_desc[qh->iso_idx].length;
+
+				ret = c->channel_program(dma, qh->maxpacket,
+						0, (u32) buf, length);
 				done = false;
+			} else {
+				done = false;
+			}
 
 		} else  {
 		/* done if urb buffer is full or short packet is recd */
@@ -1608,9 +1629,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			done ? "off" : "reset",
 			musb_readw(epio, MUSB_RXCSR),
 			musb_readw(epio, MUSB_RXCOUNT));
-#else
-		done = true;
-#endif
 	} else if (urb->status == -EINPROGRESS) {
 		/* if no errors, be sure a packet is ready for unloading */
 		if (unlikely(!(rx_csr & MUSB_RXCSR_RXPKTRDY))) {
@@ -1628,7 +1646,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#ifdef CONFIG_USB_INVENTRA_DMA
 		if (dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
@@ -1742,7 +1759,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				/* REVISIT reset CSR */
 			}
 		}
-#endif	/* Mentor DMA */
 
 		if (!dma) {
 			done = musb_host_packet_rx(musb, urb,
