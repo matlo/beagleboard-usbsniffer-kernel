@@ -143,7 +143,8 @@ static int dump_ep(struct musb_ep *ep, char *buffer, unsigned max)
 		buf += code;
 		max -= code;
 
-		if (is_cppi_enabled() && ep->current_epnum) {
+		if ((is_cppi_enabled() || is_cppi41_enabled())
+				&& ep->current_epnum) {
 			unsigned	cppi = ep->current_epnum - 1;
 			void __iomem	*base = ep->musb->ctrl_base;
 			unsigned	off1 = cppi << 2;
@@ -273,7 +274,7 @@ dump_end_info(struct musb *musb, u8 epnum, char *aBuffer, unsigned max)
 				buf += code;
 				max -= code;
 
-				if (is_cppi_enabled()
+				if ((is_cppi_enabled() || is_cppi41_enabled())
 						&& epnum
 						&& hw_ep->rx_channel) {
 					unsigned	cppi = epnum - 1;
@@ -361,7 +362,7 @@ dump_end_info(struct musb *musb, u8 epnum, char *aBuffer, unsigned max)
 				buf += code;
 				max -= code;
 
-				if (is_cppi_enabled()
+				if ((is_cppi_enabled() || is_cppi41_enabled())
 						&& epnum
 						&& hw_ep->tx_channel) {
 					unsigned	cppi = epnum - 1;
@@ -567,7 +568,8 @@ static int dump_header_stats(struct musb *musb, char *buffer)
 	buffer += code;
 #endif	/* DAVINCI */
 
-	if (is_cppi_enabled() && musb->dma_controller) {
+	if ((is_cppi_enabled() || is_cppi41_enabled())
+		&& musb->dma_controller) {
 		code = sprintf(buffer,
 				"CPPI: txcr=%d txsrc=%01x txena=%01x; "
 				"rxcr=%d rxsrc=%01x rxena=%01x "
