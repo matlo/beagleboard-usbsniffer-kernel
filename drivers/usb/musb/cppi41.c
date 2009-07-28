@@ -61,7 +61,7 @@ static struct {
 
 /******************** CPPI 4.1 Functions (External Interface) *****************/
 
-int __init cppi41_queue_mgr_init(u8 q_mgr, dma_addr_t rgn0_base, u16 rgn0_size)
+int cppi41_queue_mgr_init(u8 q_mgr, dma_addr_t rgn0_base, u16 rgn0_size)
 {
 	void __iomem *q_mgr_regs;
 	void *ptr;
@@ -111,8 +111,9 @@ int __init cppi41_queue_mgr_init(u8 q_mgr, dma_addr_t rgn0_base, u16 rgn0_size)
 
 	return 0;
 }
+EXPORT_SYMBOL(cppi41_queue_mgr_init);
 
-int __init cppi41_dma_block_init(u8 dma_num, u8 q_mgr, u8 num_order,
+int cppi41_dma_block_init(u8 dma_num, u8 q_mgr, u8 num_order,
 				 u8 *sched_tbl, u8 tbl_size)
 {
 	const struct cppi41_dma_block *dma_block;
@@ -232,6 +233,7 @@ free_queue:
 	cppi41_queue_free(q_mgr, q_num);
 	return error;
 }
+EXPORT_SYMBOL(cppi41_dma_block_init);
 
 /*
  * cppi41_mem_rgn_alloc - allocate a memory region within the queue manager
