@@ -132,6 +132,15 @@ static inline void musb_write_hsdma_count(void __iomem *mbase,
 
 #define MUSB_HSDMA_CHANNELS		8
 
+#define MUSB_FIFO_ADDRESS(base, epnum)      \
+	((unsigned long) (base + MUSB_FIFO_OFFSET(epnum)))
+
+#ifdef CONFIG_MUSB_USE_SYSTEM_DMA_WORKAROUND
+#define	use_sdma_workaround()	1
+#else
+#define	use_sdma_workaround()	0
+#endif
+
 struct musb_dma_controller;
 
 struct musb_dma_channel {
@@ -143,6 +152,7 @@ struct musb_dma_channel {
 	u8				idx;
 	u8				epnum;
 	u8				transmit;
+	int                             sysdma_channel;
 };
 
 struct musb_dma_controller {
