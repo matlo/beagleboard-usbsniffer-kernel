@@ -1627,7 +1627,7 @@ void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit)
 
 	if (!epnum) {
 #ifndef CONFIG_USB_TUSB_OMAP_DMA
-		if (!is_cppi_enabled()) {
+		if (!is_cppi_enabled() && !is_cppi41_enabled()) {
 			/* endpoint 0 */
 			if (devctl & MUSB_DEVCTL_HM)
 				musb_h_ep0_irq(musb);
@@ -2424,6 +2424,8 @@ static int __init musb_init(void)
 		"pio"
 #elif defined(CONFIG_USB_TI_CPPI_DMA)
 		"cppi-dma"
+#elif defined(CONFIG_USB_TI_CPPI41_DMA)
+		"cppi4.1-dma"
 #elif defined(CONFIG_USB_INVENTRA_DMA)
 		"musb-dma"
 #elif defined(CONFIG_USB_TUSB_OMAP_DMA)
