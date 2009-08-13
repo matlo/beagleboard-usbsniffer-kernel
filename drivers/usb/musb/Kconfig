@@ -96,7 +96,7 @@ config USB_MUSB_PERIPHERAL
 	  (With a "Mini-AB" connector, you should enable USB OTG.)
 
 config USB_MUSB_OTG
-	depends on USB && USB_GADGET && PM && EXPERIMENTAL
+	depends on USB && USB_GADGET && EXPERIMENTAL
 	bool "Both host and peripheral:  USB OTG (On The Go) Device"
 	select USB_GADGET_MUSB_HDRC
 	select USB_OTG
