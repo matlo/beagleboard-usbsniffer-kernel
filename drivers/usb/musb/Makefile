@@ -54,7 +54,7 @@ ifneq ($(CONFIG_MUSB_PIO_ONLY),y)
 
     else
       ifeq ($(CONFIG_USB_TI_CPPI41_DMA),y)
-	musb_hdrc-objs        += cppi41_dma.o
+	musb_hdrc-objs        += cppi41_dma.o cppi41.o
 
 	ifeq ($(CONFIG_USB_TUSB_OMAP_DMA),y)
           musb_hdrc-objs		+= tusb6010_omap.o

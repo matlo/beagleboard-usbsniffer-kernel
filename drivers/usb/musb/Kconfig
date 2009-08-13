@@ -174,12 +174,12 @@ config USB_TI_CPPI_DMA
 	  Enable DMA transfers when TI CPPI DMA is available.
 
 config USB_TI_CPPI41_DMA
-        bool
-        depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
-        default ARCH_DAVINCI_DA830
-        select CPPI41
-        help
-          Enable DMA transfers when TI CPPI 4.1 DMA is available.
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	default ARCH_DAVINCI_DA830
+	select CPPI41
+	help
+	 Enable DMA transfers when TI CPPI 4.1 DMA is available.
 
 config USB_TUSB_OMAP_DMA
 	bool
