@@ -48,6 +48,11 @@ config ARCH_DAVINCI_DM365
 	select AINTC
 	select ARCH_DAVINCI_DMx
 
+config CPPI41
+	bool "CPPI 4.1 support"
+	help
+	 Configure this option to include the CPPI 4.1 support.
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
