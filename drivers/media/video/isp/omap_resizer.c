@@ -88,6 +88,7 @@ struct device_params {
 	struct mutex reszwrap_mutex;		/* Semaphore for array */
 
 	struct videobuf_queue_ops vbq_ops;	/* videobuf queue operations */
+	unsigned long extra_page_addr;
 };
 
 /* Register mapped structure which contains the every register
@@ -182,6 +183,7 @@ struct channel_config {
 						 * channel is busy or not
 						 */
 	struct mutex chanprotection_mutex;
+	int buf_address[VIDEO_MAX_FRAME];
 	enum config_done config_state;
 	u8 input_buf_index;
 	u8 output_buf_index;
@@ -203,8 +205,6 @@ struct rsz_fh {
 	struct videobuf_queue vbq;
 	struct device_params *device;
 
-	dma_addr_t isp_addr_read;		/* Input/Output address */
-	dma_addr_t isp_addr_write;		/* Input/Output address */
 	u32 rsz_bufsize;			/* channel specific buffersize
 						 */
 	struct device *dev;			/*
@@ -284,7 +284,8 @@ static void rsz_hardware_setup(struct channel_config *rsz_conf_chan)
 /**
  * rsz_start - Enables Resizer Wrapper
  * @arg: Currently not used.
- * @device: Structure containing ISP resizer wrapper global information
+ * @fh: File structure containing ISP resizer information specific to
+ *      channel opened.
  *
  * Submits a resizing task specified by the rsz_resize structure. The call can
  * either be blocked until the task is completed or returned immediately based
@@ -300,11 +301,17 @@ int rsz_start(int *arg, struct rsz_fh *fh)
 	struct channel_config *rsz_conf_chan = fh->config;
 	struct rsz_mult *multipass = fh->multipass;
 	struct videobuf_queue *q = &fh->vbq;
+	struct videobuf_buffer *buf;
 	struct isp_device *isp = dev_get_drvdata(fh->dev);
 	int ret;
 
 	if (rsz_conf_chan->config_state) {
 		dev_err(rsz_device, "State not configured \n");
+		goto err_einval;
+	}
+	if (!rsz_conf_chan->register_config.rsz_sdr_inadd ||
+			!rsz_conf_chan->register_config.rsz_sdr_outadd) {
+		dev_err(rsz_device, "address is null\n");
 		goto err_einval;
 	}
 
@@ -334,32 +341,21 @@ mult:
 		goto mult;
 	}
 
-	if (fh->isp_addr_read) {
-		ispmmu_vunmap(fh->dev, fh->isp_addr_read);
-		fh->isp_addr_read = 0;
-	}
-	if (fh->isp_addr_write) {
-		ispmmu_vunmap(fh->dev, fh->isp_addr_write);
-		fh->isp_addr_write = 0;
-	}
-
 	rsz_conf_chan->status = CHANNEL_FREE;
-	q->bufs[rsz_conf_chan->input_buf_index]->state = VIDEOBUF_NEEDS_INIT;
-	q->bufs[rsz_conf_chan->output_buf_index]->state = VIDEOBUF_NEEDS_INIT;
 	rsz_conf_chan->register_config.rsz_sdr_outadd = 0;
 	rsz_conf_chan->register_config.rsz_sdr_inadd = 0;
 
-	/* Unmap and free the DMA memory allocated for buffers */
-	videobuf_dma_unmap(q, videobuf_to_dma(
-				q->bufs[rsz_conf_chan->input_buf_index]));
-	videobuf_dma_unmap(q, videobuf_to_dma(
-				q->bufs[rsz_conf_chan->output_buf_index]));
-	videobuf_dma_free(videobuf_to_dma(
-				q->bufs[rsz_conf_chan->input_buf_index]));
-	videobuf_dma_free(videobuf_to_dma(
-				q->bufs[rsz_conf_chan->output_buf_index]));
-
 	isp_unset_callback(fh->dev, CBK_RESZ_DONE);
+
+	/* Empty the Videobuf queue which was filled during the qbuf */
+	buf = q->bufs[rsz_conf_chan->input_buf_index];
+	buf->state = VIDEOBUF_IDLE;
+	list_del(&buf->stream);
+	if (rsz_conf_chan->input_buf_index != rsz_conf_chan->output_buf_index) {
+		buf = q->bufs[rsz_conf_chan->output_buf_index];
+		buf->state = VIDEOBUF_IDLE;
+		list_del(&buf->stream);
+	}
 
 	return 0;
 err_einval:
@@ -368,6 +364,8 @@ err_einval:
 
 /**
  * rsz_set_multipass - Set resizer multipass
+ * @multipass: Structure containing channel configuration
+			for multipass support
  * @rsz_conf_chan: Structure containing channel configuration
  *
  * Returns always 0
@@ -393,6 +391,8 @@ static int rsz_set_multipass(struct rsz_mult *multipass,
 
 /**
  * rsz_copy_data - Copy data
+ * @multipass: Structure containing channel configuration
+			for multipass support
  * @params: Structure containing the Resizer Wrapper parameters
  *
  * Copy data
@@ -422,6 +422,8 @@ static void rsz_copy_data(struct rsz_mult *multipass, struct rsz_params *params)
 
 /**
  * rsz_set_params - Set parameters for resizer wrapper
+ * @multipass: Structure containing channel configuration
+			for multipass support
  * @params: Structure containing the Resizer Wrapper parameters
  * @rsz_conf_chan: Structure containing channel configuration
  *
@@ -543,6 +545,8 @@ err_einval:
 
 /**
  * rsz_set_ratio - Set ratio
+ * @multipass: Structure containing channel configuration
+			for multipass support
  * @rsz_conf_chan: Structure containing channel configuration
  *
  * Returns 0 if successful, -EINVAL if invalid output size, upscaling ratio is
@@ -557,7 +561,8 @@ static int rsz_set_ratio(struct rsz_mult *multipass,
 
 	if ((multipass->out_hsize > MAX_IMAGE_WIDTH) ||
 			(multipass->out_vsize > MAX_IMAGE_WIDTH)) {
-		dev_err(rsz_device, "Invalid output size!");
+		dev_err(rsz_device, "Invalid output size! - %d", \
+					multipass->out_hsize);
 		goto err_einval;
 	}
 	if (multipass->cbilin) {
@@ -767,6 +772,8 @@ err_einval:
 
 /**
  * rsz_config_ratio - Configure ratio
+ * @multipass: Structure containing channel configuration
+			for multipass support
  * @rsz_conf_chan: Structure containing channel configuration
  *
  * Configure ratio
@@ -797,6 +804,20 @@ static void rsz_config_ratio(struct rsz_mult *multipass,
 	rsz_conf_chan->register_config.rsz_in_size |=
 					((vsize << ISPRSZ_IN_SIZE_VERT_SHIFT)
 					& ISPRSZ_IN_SIZE_VERT_MASK);
+
+	/* This is another workaround for the ISP-MMU translation fault.
+	   For the parameters whose image size comes exactly to PAGE_SIZE
+	   generates ISP-MMU translation fault. The root-cause is the equation
+		input width = (32*sph + (ow - 1)*hrsz + 16) >> 8 + 7
+			= (64*sph + (ow - 1)*hrsz + 32) >> 8 + 7
+		input height = (32*spv + (oh - 1)*vrsz + 16) >> 8 + 4
+		= (64*spv + (oh - 1)*vrsz + 32) >> 8 + 7
+
+	   we are adjusting the input width to suit for Resizer module,
+	   application should use this configuration henceforth.
+	 */
+	multipass->in_hsize = hsize;
+	multipass->in_vsize = vsize;
 
 	for (coeffcounter = 0; coeffcounter < MAX_COEF_COUNTER;
 							coeffcounter++) {
@@ -999,24 +1020,15 @@ static void rsz_calculate_crop(struct channel_config *rsz_conf_chan,
 static void rsz_vbq_release(struct videobuf_queue *q,
 						struct videobuf_buffer *vb)
 {
-	int i;
 	struct rsz_fh *fh = q->priv_data;
+	struct videobuf_dmabuf *dma = NULL;
 
-	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
-		struct videobuf_dmabuf *dma = NULL;
-		if (!q->bufs[i])
-			continue;
-		if (q->bufs[i]->memory != V4L2_MEMORY_MMAP)
-			continue;
-		dma = videobuf_to_dma(q->bufs[i]);
-		videobuf_dma_unmap(q, dma);
-		videobuf_dma_free(dma);
-	}
+	dma = videobuf_to_dma(q->bufs[vb->i]);
+	videobuf_dma_unmap(q, dma);
+	videobuf_dma_free(dma);
+	ispmmu_vunmap(fh->dev, fh->config->buf_address[vb->i]);
+	fh->config->buf_address[vb->i] = 0;
 
-	ispmmu_vunmap(fh->dev, fh->isp_addr_read);
-	ispmmu_vunmap(fh->dev, fh->isp_addr_write);
-	fh->isp_addr_read = 0;
-	fh->isp_addr_write = 0;
 	spin_lock(&fh->vbq_lock);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 	spin_unlock(&fh->vbq_lock);
@@ -1131,6 +1143,51 @@ static int omap_videobuf_dma_init_user(struct videobuf_buffer *vb,
 
 }
 
+/*
+ * This function is workaround for the issue, where ISP-MMU generated
+ * translation fault for specific params whose size is aligned to PAGE_SIZE.
+
+ * As a workaround we are padding one extra page for input buffer. This page
+ * we are allocating during init time and will not be released through-out
+ * life time of resizer driver. Please note that Resizer module only reads
+ * from this extra page.
+ */
+int omap_create_sg(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
+{
+	struct scatterlist *sglist;
+	int sglen;
+
+	if (0 == dma->nr_pages)
+		return EINVAL;
+	sglen = dma->sglen;
+	sglist = vmalloc((dma->nr_pages + 1) * sizeof(*sglist));
+	if (NULL == sglist)
+		return -ENOMEM;
+
+	sg_init_table(sglist, dma->nr_pages + 1);
+	/*
+	 * Copy the sglist locally
+	 */
+	memcpy(sglist, dma->sglist, sglen * sizeof(*sglist));
+	/*
+	 * Release the old sglist, since we already copied it locally
+	 */
+	videobuf_dma_unmap(q, dma);
+	/*
+	 * Add extra entry to sglist to work with specific params, whose
+	 * buffer address alined to PAGE_SIZE.
+	 */
+	sglist[sglen].offset = 0;
+	sglist[sglen].length = PAGE_SIZE;
+	sglist[sglen].dma_address = (dma_addr_t)device_config->extra_page_addr;
+	sglen++;
+	/*
+	 * Save the sglist for mapping to ISP-MMU space
+	 */
+	dma->sglist = sglist;
+	dma->sglen = sglen;
+	return 0;
+}
 /**
  * rsz_vbq_prepare - Videobuffer is prepared and mmapped.
  * @q: Structure containing the videobuffer queue file handle, and device
@@ -1150,16 +1207,22 @@ static int rsz_vbq_prepare(struct videobuf_queue *q,
 	struct rsz_mult *multipass = fh->multipass;
 	int err = 0;
 	unsigned int isp_addr, insize, outsize;
-	struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
 	spin_lock(&fh->vbq_lock);
 	if (vb->baddr) {
+		/* Check for 32 byte alignement */
+		if (vb->baddr != (vb->baddr & ~0x1F)) {
+			spin_unlock(&fh->vbq_lock);
+			dev_err(rsz_device, "Buffer address should be aligned \
+					to 32 byte\n");
+			return -EINVAL;
+		}
 		vb->size = fh->rsz_bufsize;
 		vb->bsize = fh->rsz_bufsize;
 	} else {
 		spin_unlock(&fh->vbq_lock);
 		dev_err(rsz_device, "No user buffer allocated\n");
-		goto out;
+		return -EINVAL;
 	}
 	if (vb->i) {
 		vb->width = fh->params->out_hsize;
@@ -1171,56 +1234,128 @@ static int rsz_vbq_prepare(struct videobuf_queue *q,
 
 	vb->field = field;
 	spin_unlock(&fh->vbq_lock);
+	/*
+	 * Calculate input and output sizes, will be used while mapping
+	 * user pages
+	 */
+	outsize = multipass->out_pitch * multipass->out_vsize;
+	insize = multipass->in_pitch * multipass->in_vsize;
 
 	if (vb->state == VIDEOBUF_NEEDS_INIT) {
-		err = videobuf_iolock(q, vb, NULL);
-		if (!err) {
-			isp_addr = ispmmu_vmap(fh->dev, dma->sglist,
-					dma->sglen);
-			if (!isp_addr)
-				err = -EIO;
-			else {
-				if (vb->i) {
+		struct videobuf_dmabuf *dma;
+		struct vm_area_struct *vma;
+		spin_lock(&fh->vbq_lock);
+		dma = videobuf_to_dma(vb);
+		vma = find_vma(current->mm, vb->baddr);
+		if ((vma) && (vma->vm_flags & VM_IO) && (vma->vm_pgoff)) {
+			/* This will catch ioremaped buffers to the kernel.
+			 *  It gives two possible scenarios -
+			 *  - Driver allocates buffer using either
+			 *    dma_alloc_coherent or get_free_pages,
+			 *    and maps to user space using
+			 *    io_remap_pfn_range/remap_pfn_range
+			 *  - Drivers maps memory outside from Linux using
+			 *    io_remap
+			 */
+			unsigned long physp = 0, asize;
+			asize = vb->i ? outsize : insize;
+			if ((vb->baddr + asize) > vma->vm_end) {
+				spin_unlock(&fh->vbq_lock);
+				dev_err(rsz_device, "User Buffer Allocation:" \
+					"err=%lu[%lu]\n",\
+					(vma->vm_end - vb->baddr), asize);
+				return -ENOMEM;
+			}
+			physp = (vma->vm_pgoff << PAGE_SHIFT) +
+					(vb->baddr - vma->vm_start);
+			err = omap_videobuf_dma_init_user(vb, physp, asize);
+			spin_unlock(&fh->vbq_lock);
+			if (0 != err)
+				return err;
+		} else {
+			err = videobuf_iolock(q, vb, NULL);
+			/*
+			 * In case of user pointer mode, the get_user_pages
+			 * will fail if user has allocated less memory than
+			 * vb->size. But it is not error from resizer driver
+			 * point of view. so handled seperately
+			 */
+			if ((err < 0) && (dma->nr_pages > 0))
+				err = videobuf_dma_map(q, dma);
+			if (err)
+				goto buf_release;
+			/*
+			 * Add one extra page for input buffer
+			 */
+			if (0 == vb->i)
+				err = omap_create_sg(q, dma);
+			if (err)
+				goto buf_release;
+			spin_unlock(&fh->vbq_lock);
+		}
+		isp_addr = ispmmu_vmap(fh->dev, dma->sglist, dma->sglen);
+		if (!isp_addr)
+			err = -EIO;
+		else {
+			if (vb->i) {
+				rsz_conf_chan->buf_address[vb->i] = isp_addr;
+				rsz_conf_chan->register_config.
+					rsz_sdr_outadd
+					= isp_addr;
+				rsz_conf_chan->output_buf_index = vb->i;
+			} else {
+				rsz_conf_chan->buf_address[vb->i] = isp_addr;
+				rsz_conf_chan->register_config.
+					rsz_sdr_inadd
+					= isp_addr;
+				rsz_conf_chan->input_buf_index = vb->i;
+				if (outsize < insize && rsz_conf_chan->
+						register_config.
+						rsz_sdr_outadd == 0) {
 					rsz_conf_chan->register_config.
-							rsz_sdr_outadd
-							= isp_addr;
-					fh->isp_addr_write = isp_addr;
-					rsz_conf_chan->output_buf_index = vb->i;
-				} else {
-					rsz_conf_chan->register_config.
-							rsz_sdr_inadd
-							= isp_addr;
-					rsz_conf_chan->input_buf_index = vb->i;
-					outsize = multipass->out_pitch *
-							multipass->out_vsize;
-					insize = multipass->in_pitch *
-							multipass->in_vsize;
-					if (outsize < insize) {
-						rsz_conf_chan->register_config.
-								rsz_sdr_outadd
-								= isp_addr;
-						rsz_conf_chan->
-							output_buf_index =
-							vb->i;
-					}
-
-					fh->isp_addr_read = isp_addr;
+						rsz_sdr_outadd
+						= isp_addr;
+					rsz_conf_chan->
+						output_buf_index =
+						vb->i;
 				}
 			}
 		}
 
-	}
+	} else {
+		if(vb->i) {
+			rsz_conf_chan->register_config.
+				rsz_sdr_outadd =
+					rsz_conf_chan->buf_address[vb->i];
+			rsz_conf_chan->output_buf_index = vb->i;
+		} else {
+			rsz_conf_chan->register_config.
+				rsz_sdr_inadd =
+					rsz_conf_chan->buf_address[vb->i];
+			rsz_conf_chan->input_buf_index = vb->i;
+			if(outsize < insize && rsz_conf_chan->
+					register_config.
+					rsz_sdr_outadd == 0) {
+				rsz_conf_chan->register_config.
+					rsz_sdr_outadd
+					= rsz_conf_chan->buf_address[vb->i];
+				rsz_conf_chan->output_buf_index = vb->i;
+			}
 
+		}
+
+	}
 	if (!err) {
 		spin_lock(&fh->vbq_lock);
 		vb->state = VIDEOBUF_PREPARED;
 		spin_unlock(&fh->vbq_lock);
-		flush_cache_user_range(NULL, vb->baddr, (vb->baddr
-								+ vb->bsize));
 	} else
 		rsz_vbq_release(q, vb);
 
-out:
+	return err;
+buf_release:
+	spin_unlock(&fh->vbq_lock);
+	rsz_vbq_release(q, vb);
 	return err;
 }
 
@@ -1328,7 +1463,8 @@ err_enomem0:
  **/
 static int rsz_release(struct inode *inode, struct file *filp)
 {
-	u32 timeout = 0;
+	int i;
+	unsigned int timeout = 0;
 	struct rsz_fh *fh = filp->private_data;
 	struct channel_config *rsz_conf_chan = fh->config;
 	struct rsz_params *params = fh->params;
@@ -1357,6 +1493,7 @@ static int rsz_release(struct inode *inode, struct file *filp)
 		}
 	}
 
+	videobuf_mmap_free(q);
 	fh->rsz_bufsize = 0;
 	filp->private_data = NULL;
 
@@ -1366,7 +1503,8 @@ static int rsz_release(struct inode *inode, struct file *filp)
 	kfree(fh);
 
 	isp_put();
-
+	fh->params = NULL;
+	fh->config = NULL;
 	return 0;
 }
 
@@ -1433,6 +1571,12 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 							chanprotection_mutex))
 			return -EINTR;
 		ret = videobuf_reqbufs(&fh->vbq, (void *)&req_buf);
+		if (ret >= 0) {
+			if (copy_to_user((struct v4l2_requestbuffers *)arg,
+						&req_buf, sizeof(struct
+						v4l2_requestbuffers)))
+				return -EFAULT;
+		}
 		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
 		break;
 	}
@@ -1474,11 +1618,7 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 						sizeof(struct rsz_params))) {
 			return -EFAULT;
 		}
-		if (mutex_lock_interruptible(&rsz_conf_chan->
-							chanprotection_mutex))
-			return -EINTR;
-		ret = rsz_set_params(fh->multipass, params, rsz_conf_chan);
-		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
+		ret = rsz_set_params(fh->multipass, fh->params,	rsz_conf_chan);
 		break;
 	}
 	case RSZ_G_PARAM:
@@ -1615,18 +1755,22 @@ static int __init omap_rsz_init(void)
 	struct device_params *device;
 	device = kzalloc(sizeof(struct device_params), GFP_KERNEL);
 	if (!device) {
-		dev_err(rsz_device, OMAP_REZR_NAME ": could not allocate "
-								"memory\n");
+		printk(OMAP_REZR_NAME ": could not allocate memory\n");
 		return -ENOMEM;
 	}
+	device->extra_page_addr = __get_free_pages(GFP_KERNEL | GFP_DMA, 0);
+	if (!device->extra_page_addr) {
+		printk(OMAP_REZR_NAME ":Allocation failed. ");
+		kfree(device);
+		return -ENOMEM;
+	}
+	printk("device->extra_page_addr - %x\n", device->extra_page_addr);
 
 	ret = alloc_chrdev_region(&dev, 0, 1, OMAP_REZR_NAME);
 	if (ret < 0) {
-		dev_err(rsz_device, OMAP_REZR_NAME ": intialization failed. "
-			"Could not allocate region "
-			"for character device\n");
-		kfree(device);
-		return -ENODEV;
+		printk(OMAP_REZR_NAME ": intialization failed. "
+			"Could not allocate region for character device\n");
+		goto fail1;
 	}
 
 	/* Register the driver in the kernel */
@@ -1638,8 +1782,7 @@ static int __init omap_rsz_init(void)
 	/* Addding character device */
 	ret = cdev_add(&c_dev, dev, 1);
 	if (ret) {
-		dev_err(rsz_device, OMAP_REZR_NAME ": Error adding "
-			"device - %d\n", ret);
+		printk(OMAP_REZR_NAME ": Error adding device - %d\n", ret);
 		goto fail2;
 	}
 	rsz_major = MAJOR(dev);
@@ -1647,7 +1790,7 @@ static int __init omap_rsz_init(void)
 	/* register driver as a platform driver */
 	ret = platform_driver_register(&omap_resizer_driver);
 	if (ret) {
-		dev_err(rsz_device, OMAP_REZR_NAME
+		printk(OMAP_REZR_NAME
 				": Failed to register platform driver!\n");
 		goto fail3;
 	}
@@ -1655,15 +1798,14 @@ static int __init omap_rsz_init(void)
 	/* Register the drive as a platform device */
 	ret = platform_device_register(&omap_resizer_device);
 	if (ret) {
-		dev_err(rsz_device, OMAP_REZR_NAME
+		printk(OMAP_REZR_NAME
 				": Failed to register platform device!\n");
 		goto fail4;
 	}
 
 	rsz_class = class_create(THIS_MODULE, OMAP_REZR_NAME);
 	if (!rsz_class) {
-		dev_err(rsz_device, OMAP_REZR_NAME
-			": Failed to create class!\n");
+		printk(OMAP_REZR_NAME ": Failed to create class!\n");
 		goto fail5;
 	}
 
@@ -1692,6 +1834,8 @@ fail3:
 	cdev_del(&c_dev);
 fail2:
 	unregister_chrdev_region(dev, 1);
+fail1:
+	free_pages((unsigned long)device->extra_page_addr, 0);
 	kfree(device);
 	return ret;
 }
@@ -1707,6 +1851,7 @@ void __exit omap_rsz_exit(void)
 	platform_driver_unregister(&omap_resizer_driver);
 	cdev_del(&c_dev);
 	unregister_chrdev_region(dev, 1);
+	free_pages((unsigned long)device_config->extra_page_addr, 0);
 	kfree(device_config);
 }
 
