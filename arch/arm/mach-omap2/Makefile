@@ -37,7 +37,12 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
 obj-$(CONFIG_ARCH_OMAP24XX)		+= sleep24xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o cpuidle34xx.o
+obj-$(CONFIG_ARCH_OMAP3)        += pm34xx.o cpuidle34xx.o
+ifeq ($(CONFIG_MACH_OMAP3517EVM),y)
+obj-$(CONFIG_ARCH_OMAP3)        += sleep3517.o
+else
+obj-$(CONFIG_ARCH_OMAP3)		+= sleep34xx.o
+endif
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 obj-$(CONFIG_OMAP_SMARTREFLEX)		+= smartreflex.o
 endif
