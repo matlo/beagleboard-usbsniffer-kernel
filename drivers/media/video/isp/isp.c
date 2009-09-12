@@ -136,6 +136,8 @@ static struct v4l2_querymenu video_menu[] = {
 /* Structure for saving/restoring ISP module registers */
 static struct isp_reg isp_reg_list[] = {
 	{OMAP3_ISP_IOMEM_MAIN, ISP_SYSCONFIG, 0},
+	{OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0ENABLE, 0},
+	{OMAP3_ISP_IOMEM_MAIN, ISP_IRQ1ENABLE, 0},
 	{OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_GRESET_LENGTH, 0},
 	{OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_PSTRB_REPLAY, 0},
 	{OMAP3_ISP_IOMEM_MAIN, ISP_CTRL, 0},
@@ -813,12 +815,15 @@ int isp_configure_interface(struct device *dev,
 
 	switch (config->ccdc_par_ser) {
 	case ISP_PARLL:
+	case ISP_PARLL_YUV_BT:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
 		ispctrl_val |= config->u.par.par_clk_pol
 			<< ISPCTRL_PAR_CLK_POL_SHIFT;
 		ispctrl_val &= ~ISPCTRL_PAR_BRIDGE_BENDIAN;
 		ispctrl_val |= config->u.par.par_bridge
 			<< ISPCTRL_PAR_BRIDGE_SHIFT;
+		if (config->ccdc_par_ser == ISP_PARLL_YUV_BT)
+			isp->bt656ifen = 1;
 		break;
 	case ISP_CSIA:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_CSIA;
@@ -900,6 +905,7 @@ static irqreturn_t omap34xx_isp_isr(int irq, void *_pdev)
 	u32 sbl_pcr;
 	unsigned long irqflags = 0;
 	int wait_hs_vs = 0;
+	u8 fld_stat;
 
 	if (isp->running == ISP_STOPPED) {
 		dev_err(dev, "ouch %8.8x!\n",isp_reg_readl(dev, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0STATUS));
@@ -914,8 +920,19 @@ static irqreturn_t omap34xx_isp_isr(int irq, void *_pdev)
 
 	spin_lock_irqsave(&bufs->lock, flags);
 	wait_hs_vs = bufs->wait_hs_vs;
-	if (irqstatus & HS_VS && bufs->wait_hs_vs)
-		bufs->wait_hs_vs--;
+	if (irqstatus & HS_VS) {
+		if (bufs->wait_hs_vs) {
+			bufs->wait_hs_vs--;
+		} else {
+			if (isp->pipeline.pix.field == V4L2_FIELD_INTERLACED) {
+				fld_stat = (isp_reg_readl(dev,
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_SYN_MODE) &
+					ISPCCDC_SYN_MODE_FLDSTAT) ? 1 :	0;
+				isp->current_field = fld_stat;
+			}
+		}
+	}
 	spin_unlock_irqrestore(&bufs->lock, flags);
 
 	spin_lock_irqsave(&isp->lock, irqflags);
@@ -950,6 +967,11 @@ static irqreturn_t omap34xx_isp_isr(int irq, void *_pdev)
 	}
 
 	if (irqstatus & CCDC_VD0) {
+		if (isp->pipeline.pix.field == V4L2_FIELD_INTERLACED) {
+			/* Skip even fields */
+			if (isp->current_field == 0)
+				return IRQ_HANDLED;
+		}
 		if (RAW_CAPTURE(isp))
 			isp_buf_process(dev, bufs);
 		if (!ispccdc_busy(&isp->isp_ccdc))
@@ -1396,7 +1418,10 @@ static int isp_try_pipeline(struct device *dev,
 				pipe->ccdc_in = CCDC_RAW_GBRG;
 		} else if (pix_input->pixelformat == V4L2_PIX_FMT_YUYV ||
 			   pix_input->pixelformat == V4L2_PIX_FMT_UYVY) {
-			pipe->ccdc_in = CCDC_YUV_SYNC;
+			if (isp->bt656ifen)
+				pipe->ccdc_in = CCDC_YUV_BT;
+			else
+				pipe->ccdc_in = CCDC_YUV_SYNC;
 			pipe->ccdc_out = CCDC_OTHERS_MEM;
 		} else
 			return -EINVAL;
@@ -1452,9 +1477,14 @@ static int isp_try_pipeline(struct device *dev,
 			pipe->rsz_out_w * ISP_BYTES_PER_PIXEL;
 	}
 
-	pix_output->field = V4L2_FIELD_NONE;
-	pix_output->sizeimage =
-		PAGE_ALIGN(pix_output->bytesperline * pix_output->height);
+	if (isp->bt656ifen)
+		pix_output->field = pix_input->field;
+	else {
+		pix_output->field = V4L2_FIELD_NONE;
+		pix_output->sizeimage =
+			PAGE_ALIGN(pix_output->bytesperline *
+					pix_output->height);
+	}
 	pix_output->priv = 0;
 
 	for (ifmt = 0; ifmt < NUM_ISP_CAPTURE_FORMATS; ifmt++) {
@@ -1467,7 +1497,10 @@ static int isp_try_pipeline(struct device *dev,
 	switch (pix_output->pixelformat) {
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_UYVY:
-		pix_output->colorspace = V4L2_COLORSPACE_JPEG;
+		if (isp->bt656ifen)
+			pix_output->colorspace = pix_input->colorspace;
+		else
+			pix_output->colorspace = V4L2_COLORSPACE_JPEG;
 		break;
 	default:
 		pix_output->colorspace = V4L2_COLORSPACE_SRGB;
@@ -1505,6 +1538,31 @@ static int isp_s_pipeline(struct device *dev,
 	ispccdc_request(&isp->isp_ccdc);
 	ispccdc_s_pipeline(&isp->isp_ccdc, &pipe);
 
+	if (pix_input->pixelformat == V4L2_PIX_FMT_UYVY)
+		ispccdc_config_y8pos(&isp->isp_ccdc, Y8POS_ODD);
+	else if (pix_input->pixelformat == V4L2_PIX_FMT_YUYV)
+		ispccdc_config_y8pos(&isp->isp_ccdc, Y8POS_EVEN);
+
+	if (((pix_input->pixelformat == V4L2_PIX_FMT_UYVY) &&
+			(pix_output->pixelformat == V4L2_PIX_FMT_UYVY))	||
+			((pix_input->pixelformat == V4L2_PIX_FMT_YUYV) &&
+			 (pix_output->pixelformat == V4L2_PIX_FMT_YUYV)))
+		/* input and output formats are in same order */
+		ispccdc_config_byteswap(&isp->isp_ccdc, 0);
+	else if (((pix_input->pixelformat == V4L2_PIX_FMT_YUYV) &&
+			(pix_output->pixelformat == V4L2_PIX_FMT_UYVY)) ||
+			((pix_input->pixelformat == V4L2_PIX_FMT_UYVY) &&
+			(pix_output->pixelformat == V4L2_PIX_FMT_YUYV)))
+		/* input and output formats are in reverse order */
+		ispccdc_config_byteswap(&isp->isp_ccdc, 1);
+	/*
+	 * Configure Pitch - This enables application to use a
+	 * different pitch
+	 * other than active pixels per line.
+	 */
+	if (isp->bt656ifen)
+		ispccdc_config_outlineoffset(&isp->isp_ccdc,
+				pipe.pix.bytesperline, 0, 0);
 	if (pipe.modules & OMAP_ISP_PREVIEW) {
 		isppreview_request(&isp->isp_prev);
 		isppreview_s_pipeline(&isp->isp_prev, &pipe);

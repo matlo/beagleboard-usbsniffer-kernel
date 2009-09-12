@@ -96,7 +96,8 @@ enum isp_interface_type {
 	ISP_PARLL = 1,
 	ISP_CSIA = 2,
 	ISP_CSIB = 4,
-	ISP_NONE = 8 /* memory input to preview / resizer */
+	ISP_PARLL_YUV_BT = 8,
+	ISP_NONE = 16 /* memory input to preview / resizer */
 };
 
 enum isp_irqevents {
@@ -424,6 +425,8 @@ struct isp_device {
 	struct isp_pipeline pipeline;
 	u32 interrupts;
 	enum isp_running running;
+	int current_field;
+	int bt656ifen;
 
 	/* ISP modules */
 	struct isp_af_device isp_af;

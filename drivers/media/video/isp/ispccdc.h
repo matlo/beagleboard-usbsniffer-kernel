@@ -58,6 +58,11 @@ enum datasize {
 	DAT12
 };
 
+/* Enumeration constants for location of Y component in 8-bit YUV data */
+enum y8pos_mode {
+	Y8POS_EVEN = 0,
+	Y8POS_ODD = 1
+};
 
 /**
  * struct ispccdc_syncif - Structure for Sync Interface between sensor and CCDC
@@ -272,5 +277,10 @@ int omap34xx_isp_ccdc_config(struct isp_ccdc_device *isp_ccdc,
 			     void *userspace_add);
 
 void ispccdc_set_wenlog(struct isp_ccdc_device *isp_ccdc, u32 wenlog);
+
+void ispccdc_config_y8pos(struct isp_ccdc_device *isp_ccdc,
+				enum y8pos_mode mode);
+
+void ispccdc_config_byteswap(struct isp_ccdc_device *isp_ccdc, int swap);
 
 #endif		/* OMAP_ISP_CCDC_H */

@@ -602,9 +602,15 @@ static int ispccdc_config_datapath(struct isp_ccdc_device *isp_ccdc,
 		syn_mode &= ~ISPCCDC_SYN_MODE_VP2SDR;
 		syn_mode &= ~ISPCCDC_SYN_MODE_SDR2RSZ;
 		syn_mode |= ISPCCDC_SYN_MODE_WEN;
-		syn_mode &= ~ISPCCDC_SYN_MODE_EXWEN;
-		isp_reg_and(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
-			    ~ISPCCDC_CFG_WENLOG);
+		if (pipe->ccdc_in == CCDC_YUV_BT) {
+			syn_mode &= ~ISPCCDC_SYN_MODE_EXWEN;
+			isp_reg_and(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_CFG, ~ISPCCDC_CFG_WENLOG);
+		} else {
+			syn_mode |= ISPCCDC_SYN_MODE_EXWEN;
+			isp_reg_or(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_CFG, ISPCCDC_CFG_WENLOG);
+		}
 		vpcfg.bitshift_sel = BIT11_2;
 		vpcfg.freq_sel = PIXCLKBY2;
 		ispccdc_config_vp(isp_ccdc, vpcfg);
@@ -648,6 +654,7 @@ static int ispccdc_config_datapath(struct isp_ccdc_device *isp_ccdc,
 		syncif.hdpol = 0;
 		syncif.ipmod = RAW;
 		syncif.vdpol = 0;
+		syncif.bt_r656_en = 0;
 		ispccdc_config_sync_if(isp_ccdc, syncif);
 		ispccdc_config_imgattr(isp_ccdc, colptn);
 		blkcfg.dcsubval = 64;
@@ -670,12 +677,28 @@ static int ispccdc_config_datapath(struct isp_ccdc_device *isp_ccdc,
 		syncif.hdpol = 0;
 		syncif.ipmod = YUV16;
 		syncif.vdpol = 1;
+		syncif.bt_r656_en = 0;
 		ispccdc_config_imgattr(isp_ccdc, 0);
 		ispccdc_config_sync_if(isp_ccdc, syncif);
 		blkcfg.dcsubval = 0;
 		ispccdc_config_black_clamp(isp_ccdc, blkcfg);
 		break;
 	case CCDC_YUV_BT:
+		syncif.ccdc_mastermode = 0;
+		syncif.datapol = 0;
+		syncif.datsz = DAT8;
+		syncif.fldmode = 1;
+		syncif.fldout = 0;
+		syncif.fldpol = 0;
+		syncif.fldstat = 0;
+		syncif.hdpol = 0;
+		syncif.ipmod = YUV8;
+		syncif.vdpol = 1;
+		syncif.bt_r656_en = 1;
+		ispccdc_config_imgattr(isp_ccdc, 0);
+		ispccdc_config_sync_if(isp_ccdc, syncif);
+		blkcfg.dcsubval = 0;
+		ispccdc_config_black_clamp(isp_ccdc, blkcfg);
 		break;
 	case CCDC_OTHERS:
 		break;
@@ -721,6 +744,8 @@ void ispccdc_config_sync_if(struct isp_ccdc_device *isp_ccdc,
 		break;
 	case YUV8:
 		syn_mode |= ISPCCDC_SYN_MODE_INPMOD_YCBCR8;
+		if (syncif.bt_r656_en)
+			syn_mode |= ISPCCDC_SYN_MODE_PACK8;
 		break;
 	};
 
@@ -788,6 +813,10 @@ void ispccdc_config_sync_if(struct isp_ccdc_device *isp_ccdc,
 	if (!(syncif.bt_r656_en)) {
 		isp_reg_and(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC,
 			    ISPCCDC_REC656IF, ~ISPCCDC_REC656IF_R656ON);
+	} else {
+		isp_reg_or(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC,
+			ISPCCDC_REC656IF, ISPCCDC_REC656IF_R656ON |
+			ISPCCDC_REC656IF_ECCFVH);
 	}
 }
 EXPORT_SYMBOL(ispccdc_config_sync_if);
@@ -1275,6 +1304,23 @@ int ispccdc_s_pipeline(struct isp_ccdc_device *isp_ccdc,
 					  << ISPCCDC_HORZ_INFO_NPH_SHIFT),
 				       OMAP3_ISP_IOMEM_CCDC,
 				       ISPCCDC_HORZ_INFO);
+		} else if (pipe->ccdc_in == CCDC_YUV_BT) {
+			isp_reg_writel(isp_ccdc->dev,
+					0 << ISPCCDC_HORZ_INFO_SPH_SHIFT |
+					(((pipe->ccdc_out_w << 1) - 1) <<
+					 ISPCCDC_HORZ_INFO_NPH_SHIFT),
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_HORZ_INFO);
+			isp_reg_writel(isp_ccdc->dev,
+					2 << ISPCCDC_VERT_START_SLV0_SHIFT |
+					2 << ISPCCDC_VERT_START_SLV1_SHIFT,
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VERT_START);
+			isp_reg_writel(isp_ccdc->dev,
+					((pipe->ccdc_out_h >> 1) - 1) <<
+					ISPCCDC_VERT_LINES_NLV_SHIFT,
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VERT_LINES);
 		} else {
 			isp_reg_writel(isp_ccdc->dev,
 				       0 << ISPCCDC_HORZ_INFO_SPH_SHIFT
@@ -1283,24 +1329,43 @@ int ispccdc_s_pipeline(struct isp_ccdc_device *isp_ccdc,
 				       OMAP3_ISP_IOMEM_CCDC,
 				       ISPCCDC_HORZ_INFO);
 		}
-		isp_reg_writel(isp_ccdc->dev,
-			       0 << ISPCCDC_VERT_START_SLV0_SHIFT,
-			       OMAP3_ISP_IOMEM_CCDC,
-			       ISPCCDC_VERT_START);
-		isp_reg_writel(isp_ccdc->dev, (pipe->ccdc_out_h - 1) <<
-			       ISPCCDC_VERT_LINES_NLV_SHIFT,
-			       OMAP3_ISP_IOMEM_CCDC,
-			       ISPCCDC_VERT_LINES);
-
 		ispccdc_config_outlineoffset(isp_ccdc, pipe->ccdc_out_w * 2,
 					     0, 0);
-		isp_reg_writel(isp_ccdc->dev, (((pipe->ccdc_out_h - 2) &
-				 ISPCCDC_VDINT_0_MASK) <<
-				ISPCCDC_VDINT_0_SHIFT) |
-			       ((100 & ISPCCDC_VDINT_1_MASK) <<
-				ISPCCDC_VDINT_1_SHIFT),
-			       OMAP3_ISP_IOMEM_CCDC,
-			       ISPCCDC_VDINT);
+		if (pipe->ccdc_in != CCDC_YUV_BT) {
+			isp_reg_writel(isp_ccdc->dev,
+					0 << ISPCCDC_VERT_START_SLV0_SHIFT,
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VERT_START);
+			isp_reg_writel(isp_ccdc->dev, (pipe->ccdc_out_h - 1) <<
+					ISPCCDC_VERT_LINES_NLV_SHIFT,
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VERT_LINES);
+			isp_reg_writel(isp_ccdc->dev, (((pipe->ccdc_out_h - 2) &
+					ISPCCDC_VDINT_0_MASK) <<
+					ISPCCDC_VDINT_0_SHIFT) |
+					((100 & ISPCCDC_VDINT_1_MASK) <<
+					 ISPCCDC_VDINT_1_SHIFT),
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VDINT);
+		} else {
+			ispccdc_config_outlineoffset(isp_ccdc,
+					pipe->ccdc_out_w * 2, EVENEVEN, 1);
+			ispccdc_config_outlineoffset(isp_ccdc,
+					pipe->ccdc_out_w * 2, ODDEVEN, 1);
+			ispccdc_config_outlineoffset(isp_ccdc,
+					pipe->ccdc_out_w * 2, EVENODD, 1);
+			ispccdc_config_outlineoffset(isp_ccdc,
+					pipe->ccdc_out_w * 2, ODDODD, 1);
+			isp_reg_writel(isp_ccdc->dev,
+					((((pipe->ccdc_out_h >> 1) - 1) &
+					ISPCCDC_VDINT_0_MASK) <<
+					ISPCCDC_VDINT_0_SHIFT) |
+					((50 & ISPCCDC_VDINT_1_MASK) <<
+					 ISPCCDC_VDINT_1_SHIFT),
+					OMAP3_ISP_IOMEM_CCDC,
+					ISPCCDC_VDINT);
+		}
+
 	} else if (pipe->ccdc_out == CCDC_OTHERS_VP_MEM) {
 		isp_reg_writel(isp_ccdc->dev,
 			       (pipe->ccdc_in_h_st << ISPCCDC_FMT_HORZ_FMTSPH_SHIFT) |
@@ -1505,6 +1570,43 @@ int ispccdc_sbl_busy(void *_isp_ccdc)
 		   ISPSBL_CCDC_WR_0_DATA_READY);
 }
 EXPORT_SYMBOL(ispccdc_sbl_busy);
+
+/**
+ * ispccdc_config_y8pos - Configures the location of Y color component
+ * @mode: Y8POS_EVEN Y pixel in even position, otherwise Y pixel in odd
+ *
+ * Configures the location of Y color componenent for YCbCr 8-bit data
+ */
+void ispccdc_config_y8pos(struct isp_ccdc_device *isp_ccdc,
+		enum y8pos_mode mode)
+{
+	if (mode == Y8POS_EVEN) {
+		isp_reg_and(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
+							~ISPCCDC_CFG_Y8POS);
+	} else {
+		isp_reg_or(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
+							ISPCCDC_CFG_Y8POS);
+	}
+}
+EXPORT_SYMBOL(ispccdc_config_y8pos);
+
+/**
+ * ispccdc_config_byteswap - Configures byte swap data stored in memory
+ * @swap: 1 - swap bytes, 0 - normal
+ *
+ * Controls the order in which the Y and C pixels are stored in memory
+ */
+void ispccdc_config_byteswap(struct isp_ccdc_device *isp_ccdc, int swap)
+{
+	if (swap) {
+		isp_reg_or(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
+							ISPCCDC_CFG_BSWD);
+	} else {
+		isp_reg_and(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CFG,
+							~ISPCCDC_CFG_BSWD);
+	}
+}
+EXPORT_SYMBOL(ispccdc_config_byteswap);
 
 /**
  * ispccdc_busy - Get busy state of the CCDC.
