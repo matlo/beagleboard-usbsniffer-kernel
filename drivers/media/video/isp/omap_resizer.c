@@ -79,6 +79,9 @@
 #define MAX_COEF_COUNTER	16
 #define COEFF_ADDRESS_OFFSET	0x04
 
+#define RSZ_DEF_REQ_EXP		0x0	/* Default read operation expand
+					 * for the Resizer driver
+					 */
 /* Global structure which contains information about number of channels
    and protection variables */
 struct device_params {
@@ -129,6 +132,9 @@ struct resizer_config {
 						 */
 	u32 rsz_yehn;				/* yehn(luma)register mapping
 						 * variable.
+						 */
+	u32 sdr_req_exp;			/* Configuration for Read
+						 * cycle Expand
 						 */
 };
 
@@ -234,6 +240,10 @@ static int rsz_set_ratio(struct rsz_mult *multipass,
 static void rsz_config_ratio(struct rsz_mult *multipass,
 					struct channel_config *rsz_conf_chan);
 
+static inline void rsz_set_exp(unsigned int exp)
+{
+	omap_writel(((exp & 0x3FF) << 10), OMAP3ISP_SBL_REG(0xF8));
+}
 /**
  * rsz_hardware_setup - Sets hardware configuration registers
  * @rsz_conf_chan: Structure containing channel configuration
@@ -279,6 +289,8 @@ static void rsz_hardware_setup(struct channel_config *rsz_conf_chan)
 						+ coeffoffset));
 		coeffoffset = coeffoffset + COEFF_ADDRESS_OFFSET;
 	}
+	/* Configure the read expand register */
+	rsz_set_exp(rsz_conf_chan->register_config.sdr_req_exp);
 }
 
 /**
@@ -535,6 +547,8 @@ static int rsz_set_params(struct rsz_mult *multipass, struct rsz_params *params,
 	}
 
 	rsz_config_ratio(multipass, rsz_conf_chan);
+	/* Default value for read expand:Taken from Davinci */
+	rsz_conf_chan->register_config.sdr_req_exp = RSZ_DEF_REQ_EXP;
 
 	rsz_conf_chan->config_state = STATE_CONFIGURED;
 
@@ -1656,6 +1670,14 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 	case RSZ_GET_CROPSIZE:
 		rsz_calculate_crop(rsz_conf_chan, (struct rsz_cropsize *)arg);
 		break;
+	case RSZ_S_EXP:
+		if (mutex_lock_interruptible(&rsz_conf_chan->
+						chanprotection_mutex))
+			return -EINTR;
+		rsz_conf_chan->register_config.sdr_req_exp =
+						*((unsigned int	*)arg);
+		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
+		break;
 
 	default:
 		dev_err(rsz_device, "resizer_ioctl: Invalid Command Value");
@@ -1764,7 +1786,6 @@ static int __init omap_rsz_init(void)
 		kfree(device);
 		return -ENOMEM;
 	}
-	printk("device->extra_page_addr - %x\n", device->extra_page_addr);
 
 	ret = alloc_chrdev_region(&dev, 0, 1, OMAP_REZR_NAME);
 	if (ret < 0) {

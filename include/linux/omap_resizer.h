@@ -21,7 +21,7 @@
 
 /* ioctls definition */
 #define RSZ_IOC_BASE		'R'
-#define RSZ_IOC_MAXNR		8
+#define RSZ_IOC_MAXNR		9
 
 /*Ioctl options which are to be passed while calling the ioctl*/
 #define RSZ_REQBUF		_IOWR(RSZ_IOC_BASE, 1,\
@@ -33,6 +33,7 @@
 #define RSZ_G_STATUS		_IOWR(RSZ_IOC_BASE, 6, struct rsz_status)
 #define RSZ_QUEUEBUF		_IOWR(RSZ_IOC_BASE, 7, struct v4l2_buffer)
 #define RSZ_GET_CROPSIZE	_IOWR(RSZ_IOC_BASE, 8, struct rsz_cropsize)
+#define RSZ_S_EXP		_IOWR(RSZ_IOC_BASE, 9, __s32)
 
 #define RSZ_INTYPE_YCBCR422_16BIT	0
 #define RSZ_INTYPE_PLANAR_8BIT		1
