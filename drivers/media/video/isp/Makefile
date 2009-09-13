@@ -6,3 +6,7 @@ isp-mod-objs += \
 	ispstat.o
 
 obj-$(CONFIG_VIDEO_OMAP3) += isp-mod.o
+
+obj-$(CONFIG_VIDEO_OMAP34XX_ISP_PREVIEWER) += \
+	omap_previewer.o
+

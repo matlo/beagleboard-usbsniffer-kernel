@@ -740,6 +740,8 @@ config VIDEO_OMAP3
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
+source "drivers/media/video/isp/Kconfig"
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
