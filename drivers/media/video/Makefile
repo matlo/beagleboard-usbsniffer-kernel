@@ -126,6 +126,7 @@ obj-$(CONFIG_VIDEO_MT9P012)     += mt9p012.o
 obj-$(CONFIG_VIDEO_DW9710)	+= dw9710.o
 obj-$(CONFIG_VIDEO_TPS61059)    += tps61059.o
 obj-$(CONFIG_VIDEO_OV3640)	+= ov3640.o
+obj-$(CONFIG_VIDEO_IMX046)      += imx046.o
 
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
 obj-$(CONFIG_USB_OV511)         += ov511.o
