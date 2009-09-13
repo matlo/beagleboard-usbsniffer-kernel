@@ -358,6 +358,21 @@ config VIDEO_TPS61059
 	---help---
 	Support for OMAP 3430 SDP LED flash tps61059 chip
 
+config VIDEO_OV3640
+	tristate "OmniVision ov3640 smart sensor driver (3MP)"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV3640 camera.  It is currently working with the TI OMAP3
+          camera controller.
+
+config VIDEO_OV3640_CSI2
+	bool "CSI2 bus support for OmniVision ov3640 sensor"
+	depends on I2C && VIDEO_V4L2 && VIDEO_OV3640
+	---help---
+	  This enables the use of the CSI2 serial bus for the ov3640
+	  camera.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
