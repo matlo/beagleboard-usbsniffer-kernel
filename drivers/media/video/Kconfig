@@ -352,6 +352,12 @@ config VIDEO_DW9710
 	  DW9710 coil.  It is currently working with the TI OMAP3
 	  camera controller and micron MT9P012 sensor.
 
+config VIDEO_TPS61059
+	tristate "OMAP 3430 SDP GPIO LED flash driver"
+	depends on VIDEO_V4L2 && MACH_OMAP_3430SDP
+	---help---
+	Support for OMAP 3430 SDP LED flash tps61059 chip
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
