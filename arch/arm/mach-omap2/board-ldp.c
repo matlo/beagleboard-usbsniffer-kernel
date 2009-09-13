@@ -51,6 +51,15 @@
 #define DEBUG_BASE		0x08000000
 #define LDP_ETHR_START		DEBUG_BASE
 
+#include <media/v4l2-int-device.h>
+
+#if defined(CONFIG_VIDEO_OV3640) || defined(CONFIG_VIDEO_OV3640_MODULE)
+#include <media/ov3640.h>
+extern struct ov3640_platform_data ldp_ov3640_platform_data;
+#endif
+
+extern void ldp_cam_init(void);
+
 static struct resource ldp_smsc911x_resources[] = {
 	[0] = {
 		.start	= LDP_ETHR_START,
@@ -350,11 +359,21 @@ static struct i2c_board_info __initdata ldp_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata ldp_i2c_boardinfo_2[] = {
+#if defined(CONFIG_VIDEO_OV3640) || defined(CONFIG_VIDEO_OV3640_MODULE)
+	{
+		I2C_BOARD_INFO("ov3640", OV3640_I2C_ADDR),
+		.platform_data = &ldp_ov3640_platform_data,
+	},
+#endif
+};
+
 static int __init omap_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, ldp_i2c_boardinfo,
 			ARRAY_SIZE(ldp_i2c_boardinfo));
-	omap_register_i2c_bus(2, 400, NULL, 0);
+	omap_register_i2c_bus(2, 400, ldp_i2c_boardinfo_2,
+			ARRAY_SIZE(ldp_i2c_boardinfo_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
@@ -399,6 +418,7 @@ static void __init omap_ldp_init(void)
 	twl4030_mmc_init(mmc);
 	/* link regulators to MMC adapters */
 	ldp_vmmc1_supply.dev = mmc[0].dev;
+	ldp_cam_init();
 }
 
 static void __init omap_ldp_map_io(void)
