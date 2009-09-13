@@ -336,6 +336,14 @@ config VIDEO_TCM825X
 	  This is a driver for the Toshiba TCM825x VGA camera sensor.
 	  It is used for example in Nokia N800.
 
+config VIDEO_MT9P012
+	tristate "Micron MT9P012 raw sensor driver (5MP)"
+	depends on I2C && VIDEO_V4L2
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Micron
+	  MT9P012 camera.  It is currently working with the TI OMAP3
+	  camera controller.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
