@@ -432,7 +432,13 @@ static void isp_enable_interrupts(struct device *dev, int is_raw)
  **/
 static void isp_disable_interrupts(struct device *dev)
 {
-	isp_reg_writel(dev, 0, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0ENABLE);
+	struct isp_device *isp = dev_get_drvdata(dev);
+
+	if (isp->bt656ifen == 0)
+		isp_reg_writel(dev, 0, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0ENABLE);
+	else
+		isp_reg_writel(dev, 0 | IRQ0ENABLE_RSZ_DONE_IRQ,
+				OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0ENABLE);
 }
 
 /**
@@ -936,6 +942,18 @@ static irqreturn_t omap34xx_isp_isr(int irq, void *_pdev)
 	spin_unlock_irqrestore(&bufs->lock, flags);
 
 	spin_lock_irqsave(&isp->lock, irqflags);
+
+	if (irqstatus & RESZ_DONE) {
+		if (irqdis->isp_callbk[CBK_RESZ_DONE])
+			irqdis->isp_callbk[CBK_RESZ_DONE](
+				RESZ_DONE,
+				irqdis->isp_callbk_arg1[CBK_RESZ_DONE],
+				irqdis->isp_callbk_arg2[CBK_RESZ_DONE]);
+		else if (!RAW_CAPTURE(isp)) {
+			ispresizer_config_shadow_registers(&isp->isp_res);
+			isp_buf_process(dev, bufs);
+		}
+	}
 	/*
 	 * We need to wait for the first HS_VS interrupt from CCDC.
 	 * Otherwise our frame (and everything else) might be bad.
@@ -954,26 +972,13 @@ static irqreturn_t omap34xx_isp_isr(int irq, void *_pdev)
 		break;
 	}
 
-	if (irqstatus & RESZ_DONE) {
-		if (irqdis->isp_callbk[CBK_RESZ_DONE])
-			irqdis->isp_callbk[CBK_RESZ_DONE](
-				RESZ_DONE,
-				irqdis->isp_callbk_arg1[CBK_RESZ_DONE],
-				irqdis->isp_callbk_arg2[CBK_RESZ_DONE]);
-		else if (!RAW_CAPTURE(isp)) {
-			ispresizer_config_shadow_registers(&isp->isp_res);
-			isp_buf_process(dev, bufs);
-		}
-	}
-
 	if (irqstatus & CCDC_VD0) {
 		if (isp->pipeline.pix.field == V4L2_FIELD_INTERLACED) {
-			/* Skip even fields */
-			if (isp->current_field == 0)
-				return IRQ_HANDLED;
+			/* Skip even fields, and process only odd fields */
+			if (isp->current_field != 0)
+				if (RAW_CAPTURE(isp))
+					isp_buf_process(dev, bufs);
 		}
-		if (RAW_CAPTURE(isp))
-			isp_buf_process(dev, bufs);
 		if (!ispccdc_busy(&isp->isp_ccdc))
 			ispccdc_config_shadow_registers(&isp->isp_ccdc);
 	}
@@ -1658,7 +1663,7 @@ static int isp_buf_process(struct device *dev, struct isp_bufs *bufs)
 		isp_disable_interrupts(dev);
 		if (RAW_CAPTURE(isp))
 			ispccdc_enable(&isp->isp_ccdc, 0);
-		else
+		else if (isp->bt656ifen == 0)
 			ispresizer_enable(&isp->isp_res, 0);
 		/*
 		 * We must wait for the HS_VS since before that the

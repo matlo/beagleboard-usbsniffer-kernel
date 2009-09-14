@@ -28,6 +28,10 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/pci.h>
+#include <linux/vmalloc.h>
+#include <linux/sched.h>
+
 #include <media/v4l2-dev.h>
 #include <asm/cacheflush.h>
 
@@ -75,27 +79,15 @@
 #define MAX_COEF_COUNTER	16
 #define COEFF_ADDRESS_OFFSET	0x04
 
-static DECLARE_MUTEX(resz_wrapper_mutex);
-
-static struct isp_interface_config reszwrap_config = {
-	.ccdc_par_ser = ISP_NONE,
-	.dataline_shift = 0,
-	.hsvs_syncdetect = ISPCTRL_SYNC_DETECT_VSRISE,
-	.strobe = 0,
-	.prestrobe = 0,
-	.shutter = 0,
-	.wait_hs_vs = 0,
-};
-
 /* Global structure which contains information about number of channels
    and protection variables */
 struct device_params {
+
 	unsigned char opened;			/* state of the device */
 	struct completion compl_isr;		/* Completion for interrupt */
 	struct mutex reszwrap_mutex;		/* Semaphore for array */
 
 	struct videobuf_queue_ops vbq_ops;	/* videobuf queue operations */
-	struct device *isp;
 };
 
 /* Register mapped structure which contains the every register
@@ -215,14 +207,17 @@ struct rsz_fh {
 	dma_addr_t isp_addr_write;		/* Input/Output address */
 	u32 rsz_bufsize;			/* channel specific buffersize
 						 */
+	struct device *dev;			/*
+						 * Device structure contains
+						 * whole ISP related data
+						 */
 };
 
 static struct device_params *device_config;
 static struct device *rsz_device;
 static int rsz_major = -1;
 /* functions declaration */
-static void rsz_hardware_setup(struct device_params *device,
-			       struct channel_config *rsz_conf_chan);
+static void rsz_hardware_setup(struct channel_config *rsz_conf_chan);
 static int rsz_set_params(struct rsz_mult *multipass, struct rsz_params *,
 						struct channel_config *);
 static int rsz_get_params(struct rsz_params *, struct channel_config *);
@@ -232,19 +227,12 @@ static void rsz_isr(unsigned long status, isp_vbq_callback_ptr arg1,
 						void *arg2);
 static void rsz_calculate_crop(struct channel_config *rsz_conf_chan,
 					struct rsz_cropsize *cropsize);
-static int rsz_set_multipass(struct device_params *device,
-			     struct rsz_mult *multipass,
-			     struct channel_config *rsz_conf_chan);
+static int rsz_set_multipass(struct rsz_mult *multipass,
+					struct channel_config *rsz_conf_chan);
 static int rsz_set_ratio(struct rsz_mult *multipass,
 					struct channel_config *rsz_conf_chan);
 static void rsz_config_ratio(struct rsz_mult *multipass,
 					struct channel_config *rsz_conf_chan);
-
-static void isp_enable_interrupts(struct device *dev, int is_raw)
-{
-	isp_reg_writel(dev, IRQ0ENABLE_RSZ_DONE_IRQ,
-		       OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0ENABLE);
-}
 
 /**
  * rsz_hardware_setup - Sets hardware configuration registers
@@ -252,52 +240,50 @@ static void isp_enable_interrupts(struct device *dev, int is_raw)
  *
  * Set hardware configuration registers
  **/
-static void rsz_hardware_setup(struct device_params *device,
-			       struct channel_config *rsz_conf_chan)
+static void rsz_hardware_setup(struct channel_config *rsz_conf_chan)
 {
 	int coeffcounter;
 	int coeffoffset = 0;
 
-	down(&resz_wrapper_mutex);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_cnt,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_CNT);
+	omap_writel(rsz_conf_chan->register_config.rsz_cnt,
+					OMAP3ISP_RESZ_REG(ISPRSZ_CNT));
 
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_in_start,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_IN_START);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_in_size,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_IN_SIZE);
+	omap_writel(rsz_conf_chan->register_config.rsz_in_start,
+					OMAP3ISP_RESZ_REG(ISPRSZ_IN_START));
+	omap_writel(rsz_conf_chan->register_config.rsz_in_size,
+					OMAP3ISP_RESZ_REG(ISPRSZ_IN_SIZE));
 
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_out_size,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_OUT_SIZE);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_sdr_inadd,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_INADD);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_sdr_inoff,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_INOFF);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_sdr_outadd,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_OUTADD);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_sdr_outoff,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_SDR_OUTOFF);
-	isp_reg_writel(device->isp, rsz_conf_chan->register_config.rsz_yehn,
-			OMAP3_ISP_IOMEM_RESZ, ISPRSZ_YENH);
+	omap_writel(rsz_conf_chan->register_config.rsz_out_size,
+					OMAP3ISP_RESZ_REG(ISPRSZ_OUT_SIZE));
+	omap_writel(rsz_conf_chan->register_config.rsz_sdr_inadd,
+					OMAP3ISP_RESZ_REG(ISPRSZ_SDR_INADD));
+	omap_writel(rsz_conf_chan->register_config.rsz_sdr_inoff,
+					OMAP3ISP_RESZ_REG(ISPRSZ_SDR_INOFF));
+	omap_writel(rsz_conf_chan->register_config.rsz_sdr_outadd,
+					OMAP3ISP_RESZ_REG(ISPRSZ_SDR_OUTADD));
+	omap_writel(rsz_conf_chan->register_config.rsz_sdr_outoff,
+					OMAP3ISP_RESZ_REG(ISPRSZ_SDR_OUTOFF));
+	omap_writel(rsz_conf_chan->register_config.rsz_yehn,
+					OMAP3ISP_RESZ_REG(ISPRSZ_YENH));
 
 	for (coeffcounter = 0; coeffcounter < MAX_COEF_COUNTER;
 							coeffcounter++) {
-		isp_reg_writel(device->isp, rsz_conf_chan->register_config.
-						rsz_coeff_horz[coeffcounter],
-						OMAP3_ISP_IOMEM_RESZ,
-						ISPRSZ_HFILT10 + coeffoffset);
+		omap_writel(rsz_conf_chan->register_config.
+					rsz_coeff_horz[coeffcounter],
+					OMAP3ISP_RESZ_REG(ISPRSZ_HFILT10
+						+ coeffoffset));
 
-		isp_reg_writel(device->isp, rsz_conf_chan->register_config.
-						rsz_coeff_vert[coeffcounter],
-						OMAP3_ISP_IOMEM_RESZ,
-						ISPRSZ_VFILT10 + coeffoffset);
+		omap_writel(rsz_conf_chan->register_config.
+					rsz_coeff_vert[coeffcounter],
+					OMAP3ISP_RESZ_REG(ISPRSZ_VFILT10
+						+ coeffoffset));
 		coeffoffset = coeffoffset + COEFF_ADDRESS_OFFSET;
 	}
-	up(&resz_wrapper_mutex);
 }
 
 /**
  * rsz_start - Enables Resizer Wrapper
+ * @arg: Currently not used.
  * @device: Structure containing ISP resizer wrapper global information
  *
  * Submits a resizing task specified by the rsz_resize structure. The call can
@@ -309,13 +295,12 @@ static void rsz_hardware_setup(struct device_params *device,
  * Returns 0 if successful, or -EINVAL if could not set callback for RSZR IRQ
  * event or the state of the channel is not configured.
  **/
-int rsz_start(struct rsz_fh *fh)
+int rsz_start(int *arg, struct rsz_fh *fh)
 {
 	struct channel_config *rsz_conf_chan = fh->config;
-	struct device_params *device = fh->device;
-	struct isp_device *isp = dev_get_drvdata(device->isp);
 	struct rsz_mult *multipass = fh->multipass;
 	struct videobuf_queue *q = &fh->vbq;
+	struct isp_device *isp = dev_get_drvdata(fh->dev);
 	int ret;
 
 	if (rsz_conf_chan->config_state) {
@@ -325,20 +310,13 @@ int rsz_start(struct rsz_fh *fh)
 
 	rsz_conf_chan->status = CHANNEL_BUSY;
 
-	rsz_hardware_setup(device, rsz_conf_chan);
+	rsz_hardware_setup(rsz_conf_chan);
 
-	if (isp_set_callback(device->isp, CBK_RESZ_DONE, rsz_isr,
-			     (void *)NULL, (void *)NULL)) {
+	if (isp_set_callback(fh->dev, CBK_RESZ_DONE, rsz_isr, (void *) NULL,
+							(void *)NULL)) {
 		dev_err(rsz_device, "No callback for RSZR\n");
 		goto err_einval;
 	}
-
-	isp_configure_interface(device->isp, &reszwrap_config);
-
-	isp_start(device->isp);
-
-	isp_enable_interrupts(device->isp, 0);
-
 mult:
 	device_config->compl_isr.done = 0;
 
@@ -352,16 +330,16 @@ mult:
 	}
 
 	if (multipass->active) {
-		rsz_set_multipass(device, multipass, rsz_conf_chan);
+		rsz_set_multipass(multipass, rsz_conf_chan);
 		goto mult;
 	}
 
 	if (fh->isp_addr_read) {
-		ispmmu_vunmap(device->isp, fh->isp_addr_read);
+		ispmmu_vunmap(fh->dev, fh->isp_addr_read);
 		fh->isp_addr_read = 0;
 	}
 	if (fh->isp_addr_write) {
-		ispmmu_vunmap(device->isp, fh->isp_addr_write);
+		ispmmu_vunmap(fh->dev, fh->isp_addr_write);
 		fh->isp_addr_write = 0;
 	}
 
@@ -381,7 +359,7 @@ mult:
 	videobuf_dma_free(videobuf_to_dma(
 				q->bufs[rsz_conf_chan->output_buf_index]));
 
-	isp_unset_callback(device->isp, CBK_RESZ_DONE);
+	isp_unset_callback(fh->dev, CBK_RESZ_DONE);
 
 	return 0;
 err_einval:
@@ -394,9 +372,8 @@ err_einval:
  *
  * Returns always 0
  **/
-static int rsz_set_multipass(struct device_params *device,
-			     struct rsz_mult *multipass,
-			     struct channel_config *rsz_conf_chan)
+static int rsz_set_multipass(struct rsz_mult *multipass,
+			struct channel_config *rsz_conf_chan)
 {
 	multipass->in_hsize = multipass->out_hsize;
 	multipass->in_vsize = multipass->out_vsize;
@@ -410,7 +387,7 @@ static int rsz_set_multipass(struct device_params *device,
 
 	rsz_set_ratio(multipass, rsz_conf_chan);
 	rsz_config_ratio(multipass, rsz_conf_chan);
-	rsz_hardware_setup(device, rsz_conf_chan);
+	rsz_hardware_setup(rsz_conf_chan);
 	return 0;
 }
 
@@ -1024,7 +1001,6 @@ static void rsz_vbq_release(struct videobuf_queue *q,
 {
 	int i;
 	struct rsz_fh *fh = q->priv_data;
-	struct device_params *device = fh->device;
 
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		struct videobuf_dmabuf *dma = NULL;
@@ -1037,8 +1013,8 @@ static void rsz_vbq_release(struct videobuf_queue *q,
 		videobuf_dma_free(dma);
 	}
 
-	ispmmu_vunmap(device->isp, fh->isp_addr_read);
-	ispmmu_vunmap(device->isp, fh->isp_addr_write);
+	ispmmu_vunmap(fh->dev, fh->isp_addr_read);
+	ispmmu_vunmap(fh->dev, fh->isp_addr_write);
 	fh->isp_addr_read = 0;
 	fh->isp_addr_write = 0;
 	spin_lock(&fh->vbq_lock);
@@ -1095,6 +1071,65 @@ err_einval:
 	spin_unlock(&fh->vbq_lock);
 	return -EINVAL;
 }
+/*
+ * This function is work around for the videobuf_iolock API,
+ * for User memory allocated with ioremap (VM_IO flag) the API
+ * get_user_pages fails.
+ *
+ * To fulfill this requirement, we have completely ignored VM layer of
+ * Linux, and configuring the ISP MMU with physical address.
+ */
+static int omap_videobuf_dma_init_user(struct videobuf_buffer *vb,
+		unsigned long physp, unsigned long asize)
+{
+	struct videobuf_dmabuf *dma;
+	struct scatterlist *sglist;
+	unsigned long data, first, last;
+	int len, i = 0;
+
+	dma = videobuf_to_dma(vb);
+	data = vb->baddr;
+
+        first = (data & PAGE_MASK) >> PAGE_SHIFT;
+        last  = ((data+asize-1) & PAGE_MASK) >> PAGE_SHIFT;
+        dma->offset   = data & ~PAGE_MASK;
+        dma->nr_pages = last-first+1;
+
+	dma->direction = PCI_DMA_FROMDEVICE;
+	/*
+	 * Allocate array of sglen + 1, to add entry of extra page
+	 * for input buffer. Driver always uses 0th buffer as input buffer.
+	 */
+	len = dma->nr_pages + (vb->i ? 0 : 1);
+	sglist = vmalloc(len * sizeof(*sglist));
+	if (NULL == sglist)
+                return -ENOMEM;
+
+	sglist[0].offset = 0;
+	sglist[0].length = PAGE_SIZE - dma->offset;
+	sglist[0].dma_address = (dma_addr_t)physp;
+	physp += sglist[0].length;
+	/*
+	 * Iterate in a loop for the number of pages
+	 */
+	for (i = 1; i < (len - (vb->i ? 0 : 1)); i++) {
+		sglist[i].offset = 0;
+		sglist[i].length = PAGE_SIZE;
+		sglist[i].dma_address = (dma_addr_t)physp;
+		physp += PAGE_SIZE;
+	}
+	if (0 == vb->i) {
+		sglist[i].offset = 0;
+		sglist[i].length = PAGE_SIZE;
+		sglist[i].dma_address =
+			(dma_addr_t)device_config->extra_page_addr;
+        }
+	dma->sglist = sglist;
+	dma->sglen = len;
+
+        return 0;
+
+}
 
 /**
  * rsz_vbq_prepare - Videobuffer is prepared and mmapped.
@@ -1111,7 +1146,6 @@ static int rsz_vbq_prepare(struct videobuf_queue *q,
 						enum v4l2_field field)
 {
 	struct rsz_fh *fh = q->priv_data;
-	struct device_params *device = fh->device;
 	struct channel_config *rsz_conf_chan = fh->config;
 	struct rsz_mult *multipass = fh->multipass;
 	int err = 0;
@@ -1141,8 +1175,8 @@ static int rsz_vbq_prepare(struct videobuf_queue *q,
 	if (vb->state == VIDEOBUF_NEEDS_INIT) {
 		err = videobuf_iolock(q, vb, NULL);
 		if (!err) {
-			isp_addr = ispmmu_vmap(device->isp, dma->sglist,
-					       dma->sglen);
+			isp_addr = ispmmu_vmap(fh->dev, dma->sglist,
+					dma->sglen);
 			if (!isp_addr)
 				err = -EIO;
 			else {
@@ -1212,7 +1246,6 @@ static int rsz_open(struct inode *inode, struct file *filp)
 	struct device_params *device = device_config;
 	struct rsz_params *params;
 	struct rsz_mult *multipass;
-	struct device *isp;
 
 	if ((filp->f_flags & O_NONBLOCK) == O_NONBLOCK) {
 		printk(KERN_DEBUG "omap-resizer: Device is opened in "
@@ -1221,18 +1254,15 @@ static int rsz_open(struct inode *inode, struct file *filp)
 		printk(KERN_DEBUG "omap-resizer: Device is opened in blocking "
 					"mode\n");
 	}
-
 	fh = kzalloc(sizeof(struct rsz_fh), GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
 
-	isp = isp_get();
-	if (!isp) {
-		printk(KERN_ERR "Can't enable ISP clocks (ret %d)\n", ret);
-		ret = -EACCES;
-		goto err_resz;
-	}
-	device->isp = isp;
+	fh->dev = isp_get();
+	if (fh->dev == NULL)
+		return -EINVAL;
+
+	isp_start(fh->dev);
 
 	rsz_conf_chan = kzalloc(sizeof(struct channel_config), GFP_KERNEL);
 	if (rsz_conf_chan == NULL) {
@@ -1285,8 +1315,6 @@ err_enomem2:
 err_enomem1:
 	kfree(rsz_conf_chan);
 err_enomem0:
-	isp_put();
-err_resz:
 	kfree(fh);
 	return ret;
 }
@@ -1311,16 +1339,23 @@ static int rsz_release(struct inode *inode, struct file *filp)
 		timeout++;
 		schedule();
 	}
-	if (mutex_lock_interruptible(&device_config->reszwrap_mutex))
-		return -EINTR;
-	device_config->opened--;
-	mutex_unlock(&device_config->reszwrap_mutex);
-	/* This will Free memory allocated to the buffers,
-	 * and flushes the queue
-	 */
-	videobuf_queue_cancel(q);
-	fh->params = NULL;
-	fh->config = NULL;
+	/* Free memory allocated to the buffers */
+	for (i = 0 ; i < VIDEO_MAX_FRAME ; i++) {
+		struct videobuf_dmabuf *dma = NULL;
+		struct vm_area_struct *vma;
+		if (!q->bufs[i])
+			continue;
+		dma = videobuf_to_dma(q->bufs[i]);
+		vma = find_vma(current->mm, q->bufs[i]->baddr);
+		if ((vma) && (vma->vm_flags & VM_IO) && (vma->vm_pgoff)) {
+			vfree(dma->sglist);
+			dma->sglist = NULL;
+			dma->sglen = 0;
+		} else {
+			videobuf_dma_unmap(q, dma);
+			videobuf_dma_free(dma);
+		}
+	}
 
 	fh->rsz_bufsize = 0;
 	filp->private_data = NULL;
@@ -1368,13 +1403,12 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 	int ret = 0;
 	struct rsz_fh *fh = file->private_data;
 	struct device_params *device = fh->device;
-	struct isp_device *isp = dev_get_drvdata(device->isp);
 	struct channel_config *rsz_conf_chan = fh->config;
 
 	if ((_IOC_TYPE(cmd) != RSZ_IOC_BASE)
 					|| (_IOC_NR(cmd) > RSZ_IOC_MAXNR)) {
 		dev_err(rsz_device, "Bad command value \n");
-		goto err_minusone;
+		return -1;
 	}
 
 	if (_IOC_DIR(cmd) & _IOC_READ)
@@ -1384,7 +1418,7 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 
 	if (ret) {
 		dev_err(rsz_device, "Access denied\n");
-		goto err_minusone;
+		return -1;
 	}
 
 	switch (cmd) {
@@ -1393,11 +1427,11 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 		struct v4l2_requestbuffers req_buf;
 		if (copy_from_user(&req_buf, (struct v4l2_requestbuffers *)arg,
 					sizeof(struct v4l2_requestbuffers))) {
-			goto err_efault;
+			return -EFAULT;
 		}
 		if (mutex_lock_interruptible(&rsz_conf_chan->
 							chanprotection_mutex))
-			goto err_eintr;
+			return -EINTR;
 		ret = videobuf_reqbufs(&fh->vbq, (void *)&req_buf);
 		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
 		break;
@@ -1407,16 +1441,16 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 		struct v4l2_buffer buf;
 		if (copy_from_user(&buf, (struct v4l2_buffer *)arg,
 						sizeof(struct v4l2_buffer))) {
-			goto err_efault;
+			return -EFAULT;
 		}
 		if (mutex_lock_interruptible(&rsz_conf_chan->
 							chanprotection_mutex))
-			goto err_eintr;
+			return -EINTR;
 		ret = videobuf_querybuf(&fh->vbq, (void *)&buf);
 		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
 		if (copy_to_user((struct v4l2_buffer *)arg, &buf,
 						sizeof(struct v4l2_buffer)))
-			ret = -EFAULT;
+			return -EFAULT;
 		break;
 	}
 	case RSZ_QUEUEBUF:
@@ -1424,11 +1458,11 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 		struct v4l2_buffer buf;
 		if (copy_from_user(&buf, (struct v4l2_buffer *)arg,
 						sizeof(struct v4l2_buffer))) {
-			goto err_efault;
+			return -EFAULT;
 		}
 		if (mutex_lock_interruptible(&rsz_conf_chan->
 							chanprotection_mutex))
-			goto err_eintr;
+			return -EINTR;
 		ret = videobuf_qbuf(&fh->vbq, (void *)&buf);
 		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
 		break;
@@ -1438,43 +1472,32 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 		struct rsz_params *params = fh->params;
 		if (copy_from_user(params, (struct rsz_params *)arg,
 						sizeof(struct rsz_params))) {
-			goto err_efault;
+			return -EFAULT;
 		}
 		if (mutex_lock_interruptible(&rsz_conf_chan->
 							chanprotection_mutex))
-			goto err_eintr;
+			return -EINTR;
 		ret = rsz_set_params(fh->multipass, params, rsz_conf_chan);
 		mutex_unlock(&rsz_conf_chan->chanprotection_mutex);
 		break;
 	}
-
 	case RSZ_G_PARAM:
-	{
-		struct rsz_params params;
-
-		ret = rsz_get_params(&params, rsz_conf_chan);
-
-		if (copy_to_user((struct rsz_params *)arg, &params,
-					sizeof(struct rsz_params)))
-			ret = -EFAULT;
+		ret = rsz_get_params((struct rsz_params *)arg, rsz_conf_chan);
 		break;
-	}
 
 	case RSZ_G_STATUS:
 	{
-		struct rsz_status status;
-
-		status.chan_busy = rsz_conf_chan->status;
-		status.hw_busy = ispresizer_busy(&isp->isp_res);
-		status.src = INPUT_RAM;
-
-		if (copy_to_user((struct rsz_status *)arg, &status,
-						sizeof(struct rsz_status)))
-			ret = -EFAULT;
+		struct rsz_status *status;
+		struct isp_device *isp = dev_get_drvdata(fh->dev);
+		status = (struct rsz_status *)arg;
+		status->chan_busy = rsz_conf_chan->status;
+		status->hw_busy = ispresizer_busy(&isp->isp_res);
+		status->src = INPUT_RAM;
 		break;
 	}
-
 	case RSZ_RESIZE:
+	{
+		struct isp_device *isp = dev_get_drvdata(fh->dev);
 		if (file->f_flags & O_NONBLOCK) {
 			if (ispresizer_busy(&isp->isp_res))
 				return -EBUSY;
@@ -1484,40 +1507,22 @@ static long rsz_unlocked_ioctl(struct file *file, unsigned int cmd,
 			}
 		} else {
 			if (mutex_lock_interruptible(&device->reszwrap_mutex))
-				goto err_eintr;
+				return -EINTR;
 		}
-		ret = rsz_start(fh);
+		ret = rsz_start((int *)arg, fh);
 		mutex_unlock(&device->reszwrap_mutex);
 		break;
-
-	case RSZ_GET_CROPSIZE:
-	{
-		struct rsz_cropsize sz;
-
-		rsz_calculate_crop(rsz_conf_chan, &sz);
-
-		if (copy_to_user((struct rsz_cropsize *)arg, &sz,
-						sizeof(struct rsz_cropsize)))
-			ret = -EFAULT;
-		break;
 	}
+	case RSZ_GET_CROPSIZE:
+		rsz_calculate_crop(rsz_conf_chan, (struct rsz_cropsize *)arg);
+		break;
 
 	default:
 		dev_err(rsz_device, "resizer_ioctl: Invalid Command Value");
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-out:
 	return (long)ret;
-err_minusone:
-	ret = -1;
-	goto out;
-err_eintr:
-	ret = -EINTR;
-	goto out;
-err_efault:
-	ret = -EFAULT;
-	goto out;
 }
 
 static const struct file_operations rsz_fops = {
@@ -1608,7 +1613,6 @@ static int __init omap_rsz_init(void)
 {
 	int ret = 0;
 	struct device_params *device;
-
 	device = kzalloc(sizeof(struct device_params), GFP_KERNEL);
 	if (!device) {
 		dev_err(rsz_device, OMAP_REZR_NAME ": could not allocate "
@@ -1644,7 +1648,7 @@ static int __init omap_rsz_init(void)
 	ret = platform_driver_register(&omap_resizer_driver);
 	if (ret) {
 		dev_err(rsz_device, OMAP_REZR_NAME
-		       ": Failed to register platform driver!\n");
+				": Failed to register platform driver!\n");
 		goto fail3;
 	}
 
@@ -1652,7 +1656,7 @@ static int __init omap_rsz_init(void)
 	ret = platform_device_register(&omap_resizer_device);
 	if (ret) {
 		dev_err(rsz_device, OMAP_REZR_NAME
-		       ": Failed to register platform device!\n");
+				": Failed to register platform device!\n");
 		goto fail4;
 	}
 
@@ -1665,8 +1669,8 @@ static int __init omap_rsz_init(void)
 
 	/* make entry in the devfs */
 	rsz_device = device_create(rsz_class, rsz_device,
-					MKDEV(rsz_major, 0), NULL,
-					OMAP_REZR_NAME);
+						MKDEV(rsz_major, 0), NULL,
+						OMAP_REZR_NAME);
 	dev_dbg(rsz_device, OMAP_REZR_NAME ": Registered Resizer Wrapper\n");
 	device->opened = 0;
 
