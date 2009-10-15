@@ -57,7 +57,13 @@ struct prm_setup_vc {
 	u16 vdd1_ret;
 	u16 vdd1_off;
 };
-extern void omap3_set_prm_setup_vc(struct prm_setup_vc *setup_vc);
+#ifdef CONFIG_PM
+extern void omap3_pm_init_vc(struct prm_setup_vc *setup_vc);
+#else
+static inline void omap3_pm_init_vc(struct prm_setup_vc *setup_vc)
+{
+}
+#endif
 
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);
