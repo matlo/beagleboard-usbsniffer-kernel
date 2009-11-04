@@ -31,8 +31,10 @@
 #include <linux/mm.h>
 #include <linux/videodev2.h>
 #include <linux/i2c/twl4030.h>
+#include <linux/delay.h>
 
 #include <plat/mux.h>
+#include <plat/board.h>
 
 #include <media/v4l2-int-device.h>
 #include <media/tvp514x-int.h>
@@ -45,8 +47,9 @@
 
 #define MODULE_NAME			"omap3evmdc"
 
+#define TVP5146_I2C_BUSNUM		3
 /* Is decoder present on-board or Daughter card */
-static int is_dec_onboard;
+static bool is_dec_onboard;
 
 /* GPIO pins Daughter Card */
 #define GPIO134_SEL_TVP_Y	(134)
@@ -56,7 +59,12 @@ static int is_dec_onboard;
 #define GPIO98_VID_DEC_RES	(98)
 #define nCAM_VD_SEL		(157)
 
-static int cam_inited;
+#ifndef TRUE
+#define TRUE			1
+#endif
+#ifndef FALSE
+#define FALSE			0
+#endif
 
 #if defined(CONFIG_VIDEO_TVP514X) || defined(CONFIG_VIDEO_TVP514X_MODULE)
 #if defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
@@ -225,6 +233,7 @@ static int omap3evmdc_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
  */
 static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 {
+	static int is_init_done = 0;
 	unsigned char val;
 	int err = 0;
 
@@ -233,35 +242,41 @@ static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 		return -EPERM;
 	}
 
-	/*FIXME: Need to follow standard GPIO API's to control
-	 *	TWL4030 GPIO.
-	 */
-	/* Enable TWL GPIO Module */
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, 0x04, REG_GPIO_CTRL);
+	if (is_init_done == 0) {
+		/*FIXME: Need to follow standard GPIO API's to control
+		 *	TWL4030 GPIO.
+		 */
+		/* Enable TWL GPIO Module */
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, 0x04, REG_GPIO_CTRL);
 
-	/* Configure GPIO2 and GPIO6 as output */
-	twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR1);
-	val |= 0x44;
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR1);
+		/* First Level Enable GPIO */
+		/* Configure GPIO2 as output */
+		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR1);
+		val |= 0x04;
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR1);
+		/* Set GPIO-2 pull-up */
+		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR1);
+		val |= 0x20;
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR1);
+		/* Set GPIO-2 = 0 */
+		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATAOUT1);
+		val &= ~0x04;
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATAOUT1);
 
-	/* Configure GPIO8 as output*/
-	twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR2);
-	val |= 0x1;
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR2);
+		/* Configure GPIO8 as output*/
+		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR2);
+		val |= 0x1;
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR2);
+		/* GPIO-8 pull down */
+		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR3);
+		val |= 0x01;
+		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR3);
 
-	/* Set GPIO pull-up */
-	twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR1);
-	val |= 0x20;
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR1);
-	twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR3);
-	val |= 0x2;
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR3);
-
-	/* Set GPIO6 = 1 */
-	twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATAOUT1);
-	val |= 0x40;
-	twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATAOUT1);
-
+		/* Assert the reset signal */
+		gpio_set_value(GPIO98_VID_DEC_RES, 0);
+		mdelay(5);
+		gpio_set_value(GPIO98_VID_DEC_RES, 1);
+	}
 	switch (mux_id) {
 	case MUX_TVP5146:
 		if (ENABLE_MUX == value) {
@@ -405,15 +420,6 @@ static struct i2c_board_info __initdata tvp5146_i2c_board_info = {
 static int omap3evmdc_mdc_config(void)
 {
 	if (is_dec_onboard) {
-		unsigned char val;
-
-		/* Set GPIO8 = 1 */
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
-				REG_GPIODATAOUT2);
-		val &= ~0x1;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
-				REG_GPIODATAOUT2);
-
 		/* Enable Video Decoder */
 		omap_cfg_reg(AA21_34XX_GPIO157);
 		if (gpio_request(nCAM_VD_SEL, "Vid-Dec Sel") < 0) {
@@ -421,6 +427,7 @@ static int omap3evmdc_mdc_config(void)
 			return -EINVAL;
 		}
 		gpio_direction_output(nCAM_VD_SEL, 1);
+		gpio_set_value(nCAM_VD_SEL, 1);
 
 		omap_cfg_reg(C23_34XX_GPIO98);
 		if (gpio_request(GPIO98_VID_DEC_RES, "vid-dec reset") < 0) {
@@ -465,13 +472,15 @@ static int omap3evmdc_mdc_config(void)
  *
  * @return result of operation - 0 is success
  */
-int __init omap3evmdc_init(int is_onboard, int dec_i2c_bus, int dec_i2c_id)
+int __init omap3evmdc_init(void)
 {
 	int err;
 
-	cam_inited = 0;
 	/* Status of Video Decoder : On Board or DC */
-	is_dec_onboard = is_onboard;
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		is_dec_onboard = TRUE;
+	else
+		is_dec_onboard = FALSE;
 
 	err = omap3evmdc_mdc_config();
 	if (err) {
@@ -486,8 +495,12 @@ int __init omap3evmdc_init(int is_onboard, int dec_i2c_bus, int dec_i2c_id)
 	 * be registered with I2C using i2c_register_board_info().
 	 */
 #if defined(CONFIG_VIDEO_TVP514X) || defined(CONFIG_VIDEO_TVP514X_MODULE)
-	tvp5146_i2c_board_info.addr = dec_i2c_id;
-	err = i2c_register_board_info(dec_i2c_bus,
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		tvp5146_i2c_board_info.addr = 0x5C;
+	else
+		tvp5146_i2c_board_info.addr = 0x5D;
+
+	err = i2c_register_board_info(TVP5146_I2C_BUSNUM,
 					&tvp5146_i2c_board_info, 1);
 	if (err) {
 		printk(KERN_ERR MODULE_NAME \
@@ -499,3 +512,4 @@ int __init omap3evmdc_init(int is_onboard, int dec_i2c_bus, int dec_i2c_id)
 
 	return 0;
 }
+arch_initcall(omap3evmdc_init);

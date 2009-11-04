@@ -40,5 +40,4 @@ enum config_mux {
 	ENABLE_MUX
 };
 
-int omap3evmdc_init(int dec_sts, int dec_i2c_bus, int dec_i2c_id);
 #endif		/* __BOARD_OMAP3EVM_DC_H_ */

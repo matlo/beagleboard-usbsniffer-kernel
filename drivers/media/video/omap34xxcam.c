@@ -38,6 +38,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-int-device.h>
 #include <media/tvp514x-int.h>
 
 #include "omap34xxcam.h"
@@ -542,7 +543,7 @@ static int try_pix_parm(struct omap34xxcam_videodev *vdev,
 				if (FPS_ABS_DIFF(fps, frmi.discrete)
 				    < FPS_ABS_DIFF(fps, *best_ival)) {
 					dev_dbg(&vdev->vfd->dev, "closer fps: "
-						"fps %d\t fps %d\n",
+						"fps %ld\t fps %ld\n",
 						FPS_ABS_DIFF(fps,
 							      frmi.discrete),
 						FPS_ABS_DIFF(fps, *best_ival));
