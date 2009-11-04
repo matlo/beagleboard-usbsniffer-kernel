@@ -22,7 +22,7 @@
 #ifndef OMAP_ISP_CCDC_H
 #define OMAP_ISP_CCDC_H
 
-#include <mach/isp_user.h>
+#include <plat/isp_user.h>
 
 #define is_isplsc_activated()		1
 

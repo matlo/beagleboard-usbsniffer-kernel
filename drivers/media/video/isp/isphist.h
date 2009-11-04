@@ -21,7 +21,7 @@
 #ifndef OMAP_ISP_HIST_H
 #define OMAP_ISP_HIST_H
 
-#include <mach/isp_user.h>
+#include <plat/isp_user.h>
 
 #define MAX_REGIONS		0x4
 #define MAX_WB_GAIN		255

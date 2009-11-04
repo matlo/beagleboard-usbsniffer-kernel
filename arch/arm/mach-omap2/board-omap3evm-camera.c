@@ -32,10 +32,10 @@
 #include <linux/videodev2.h>
 #include <linux/i2c/twl4030.h>
 
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #include <media/v4l2-int-device.h>
-#include <media/tvp514x.h>
+#include <media/tvp514x-int.h>
 
 /* Include V4L2 ISP-Camera driver related header file */
 #include <../drivers/media/video/omap34xxcam.h>
@@ -59,7 +59,7 @@ static int is_dec_onboard;
 static int cam_inited;
 
 #if defined(CONFIG_VIDEO_TVP514X) || defined(CONFIG_VIDEO_TVP514X_MODULE)
-#if defined(CONFIG_VIDEO_OMAP3_CAM) || defined(CONFIG_VIDEO_OMAP3_CAM_MODULE)
+#if defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
 static struct omap34xxcam_hw_config decoder_hwc = {
 	.dev_index		= 0,
 	.dev_minor		= 0,
@@ -123,7 +123,7 @@ static int tvp5146_ifparm(struct v4l2_ifparm *p)
  */
 static int tvp5146_set_prv_data(struct v4l2_int_device *s, void *priv)
 {
-#if defined(CONFIG_VIDEO_OMAP3_CAM) || defined(CONFIG_VIDEO_OMAP3_CAM_MODULE)
+#if defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
 	struct omap34xxcam_hw_config *hwc = priv;
 
 	if (priv == NULL)
@@ -366,7 +366,7 @@ static int tvp5146_power_set(struct v4l2_int_device *s, enum v4l2_power power)
 				return -ENODEV;
 		}
 
-#if defined(CONFIG_VIDEO_OMAP3_CAM) || defined(CONFIG_VIDEO_OMAP3_CAM_MODULE)
+#if defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
 		isp_configure_interface(vdev->cam->isp, &tvp5146_if_config);
 #endif
 		break;

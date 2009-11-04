@@ -743,7 +743,7 @@ static void __init omap3_evm_init(void)
 	ads7846_dev_init();
 	omap3evm_init_smsc911x();
 
-	omap3evmdc_init(0, 3, 0x5D);
+	omap3evmdc_init(1, 3, 0x5c);
 
 	omap3_evm_display_init();
 }

@@ -22,7 +22,7 @@
 #ifndef OMAP_ISP_AF_H
 #define OMAP_ISP_AF_H
 
-#include <mach/isp_user.h>
+#include <plat/isp_user.h>
 
 #include "isph3a.h"
 #include "ispstat.h"

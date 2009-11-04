@@ -25,14 +25,14 @@
 
 #ifndef OMAP_ISP_TOP_H
 #define OMAP_ISP_TOP_H
-#include <mach/cpu.h>
+#include <plat/cpu.h>
 #include <media/videobuf-dma-sg.h>
 #include <linux/videodev2.h>
 
 #include <asm/io.h>
 
-#include <mach/iommu.h>
-#include <mach/iovmm.h>
+#include <plat/iommu.h>
+#include <plat/iovmm.h>
 
 struct isp_pipeline;
 

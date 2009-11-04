@@ -24,7 +24,7 @@
 #ifndef __ISPREG_H__
 #define __ISPREG_H__
 
-#include <mach/omap34xx.h>
+#include <plat/omap34xx.h>
 
 /* Note: Uncomment below defines as needed for enabling module specific debug
  * messages

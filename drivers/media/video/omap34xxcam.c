@@ -34,10 +34,11 @@
 
 #include <linux/videodev2.h>
 #include <linux/version.h>
+#include <linux/sched.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
-#include <media/tvp514x.h>
+#include <media/tvp514x-int.h>
 
 #include "omap34xxcam.h"
 #include "isp/isp.h"
