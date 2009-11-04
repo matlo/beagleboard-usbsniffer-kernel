@@ -49,6 +49,37 @@
 #include "pm.h"
 #include "omap3-opp.h"
 
+#include <media/v4l2-int-device.h>
+
+#if defined(CONFIG_VIDEO_MT9P012) || defined(CONFIG_VIDEO_MT9P012_MODULE)
+#include <media/mt9p012.h>
+extern struct mt9p012_platform_data sdp3430_mt9p012_platform_data;
+#endif
+
+#if defined(CONFIG_VIDEO_OV3640) || defined(CONFIG_VIDEO_OV3640_MODULE)
+#include <media/ov3640.h>
+extern struct ov3640_platform_data sdp3430_ov3640_platform_data;
+#endif
+
+#ifdef CONFIG_VIDEO_DW9710
+#include <media/dw9710.h>
+extern struct dw9710_platform_data sdp3430_dw9710_platform_data;
+#endif
+
+#if defined(CONFIG_VIDEO_TPS61059) || defined(CONFIG_VIDEO_TPS61059_MODULE)
+extern struct tps61059_platform_data sdp3430_tps61059_data;
+
+static struct platform_device sdp3430_tps61059_device = {
+	.name		= "tps61059",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &sdp3430_tps61059_data,
+	},
+};
+#endif
+
+extern void sdp3430_cam_init(void);
+
 #define SDP3430_TS_GPIO_IRQ_SDPV1	3
 #define SDP3430_TS_GPIO_IRQ_SDPV2	2
 
@@ -331,8 +362,39 @@ static struct regulator_consumer_supply sdp3430_vdda_dac_supply = {
 	.dev		= &sdp3430_dss_device.dev,
 };
 
+static struct platform_device sdp3430_camkit_device = {
+	.name		= "sdp3430_camkit",
+	.id		= -1,
+};
+
+static struct regulator_consumer_supply sdp3430_vaux2_supplies[] = {
+	{
+		.supply		= "vaux2_1",
+		.dev		= &sdp3430_camkit_device.dev,
+	},
+	{
+		.supply		= "vaux2_2",
+		.dev		= &sdp3430_camkit_device.dev,
+	},
+	{
+		.supply		= "vaux2_3",
+		.dev		= &sdp3430_camkit_device.dev,
+	},
+};
+
+static struct regulator_consumer_supply sdp3430_vaux4_supplies[] = {
+	{
+		.supply		= "vaux4_1",
+		.dev		= &sdp3430_camkit_device.dev,
+	},
+};
+
 static struct platform_device *sdp3430_devices[] __initdata = {
 	&sdp3430_dss_device,
+	&sdp3430_camkit_device,
+#if defined(CONFIG_VIDEO_TPS61059) || defined(CONFIG_VIDEO_TPS61059_MODULE)
+	&sdp3430_tps61059_device,
+#endif
 };
 
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
@@ -559,6 +621,8 @@ static struct regulator_init_data sdp3430_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vaux2_supplies),
+	.consumer_supplies	= sdp3430_vaux2_supplies,
 };
 
 /* VAUX3 for LCD board */
@@ -585,6 +649,8 @@ static struct regulator_init_data sdp3430_vaux4 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vaux4_supplies),
+	.consumer_supplies	= sdp3430_vaux4_supplies,
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -716,13 +782,35 @@ static struct i2c_board_info __initdata sdp3430_i2c_boardinfo[] = {
 	},
 };
 
+static struct i2c_board_info __initdata sdp3430_i2c_boardinfo_2[] = {
+#if defined(CONFIG_VIDEO_MT9P012) || defined(CONFIG_VIDEO_MT9P012_MODULE)
+	{
+		I2C_BOARD_INFO("mt9p012", MT9P012_I2C_ADDR),
+		.platform_data = &sdp3430_mt9p012_platform_data,
+	},
+#ifdef CONFIG_VIDEO_DW9710
+	{
+		I2C_BOARD_INFO("dw9710",  DW9710_AF_I2C_ADDR),
+		.platform_data = &sdp3430_dw9710_platform_data,
+	},
+#endif
+#endif
+#if defined(CONFIG_VIDEO_OV3640) || defined(CONFIG_VIDEO_OV3640_MODULE)
+	{
+		I2C_BOARD_INFO("ov3640", OV3640_I2C_ADDR),
+		.platform_data = &sdp3430_ov3640_platform_data,
+	},
+#endif
+};
+
 static int __init omap3430_i2c_init(void)
 {
 	/* i2c1 for PMIC only */
 	omap_register_i2c_bus(1, 2600, sdp3430_i2c_boardinfo,
 			ARRAY_SIZE(sdp3430_i2c_boardinfo));
 	/* i2c2 on camera connector (for sensor control) and optional isp1301 */
-	omap_register_i2c_bus(2, 400, NULL, 0);
+	omap_register_i2c_bus(2, 400, sdp3430_i2c_boardinfo_2,
+			ARRAY_SIZE(sdp3430_i2c_boardinfo_2));
 	/* i2c3 on display connector (for DVI, tfp410) */
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
@@ -797,6 +885,9 @@ static void __init omap_3430sdp_init(void)
 	omap_serial_init();
 	usb_musb_init();
 	board_smc91x_init();
+
+	sdp3430_cam_init();
+
 	sdp3430_display_init();
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
