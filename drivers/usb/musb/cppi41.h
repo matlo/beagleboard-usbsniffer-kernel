@@ -719,3 +719,8 @@ void cppi41_exit(void);
  */
 int cppi41_dma_sched_tbl_init(u8 dma_num, u8 q_mgr,
 				u32 *sched_tbl, u8 tbl_size);
+
+/**
+ * cppi41_free_teardown_queue
+ */
+void cppi41_free_teardown_queue(int dma_num);
