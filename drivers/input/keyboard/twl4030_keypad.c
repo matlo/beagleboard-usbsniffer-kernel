@@ -449,11 +449,21 @@ static int __devexit twl4030_kp_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int twl4030_kp_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
+
+	if (pdata->on_suspend)
+		pdata->on_suspend(pdata->pm_state);
+
 	return 0;
 }
 
 static int twl4030_kp_resume(struct platform_device *pdev)
 {
+	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
+
+	if (pdata->on_resume)
+		pdata->on_resume(pdata->pm_state);
+
 	return 0;
 }
 #else

@@ -487,6 +487,18 @@ struct twl4030_keypad_data {
 	unsigned rows;
 	unsigned cols;
 	bool rep;
+#ifdef CONFIG_PM
+	/*
+	 * Board specific information required during suspend, resume.
+	 * E.g. configuration as wake-up source.
+	 */
+	void *pm_state;
+	/*
+	 * Hooks for board specific execution during suspend, resume.
+	 */
+	void (*on_suspend)(void *pstate);
+	void (*on_resume)(void *pstate);
+#endif
 };
 
 enum twl4030_usb_mode {
