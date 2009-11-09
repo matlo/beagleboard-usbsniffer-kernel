@@ -243,6 +243,32 @@ int __init cppi41_init(struct musb *musb)
 
 #endif /* CONFIG_USB_TI_CPPI41_DMA */
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+int cppi41_disable_sched_rx(void)
+{
+	u16 numch = 7, blknum = usb_cppi41_info.dma_block;
+
+	dma_sched_table[0] = 0x02810100;
+	dma_sched_table[1] = 0x830382;
+
+	cppi41_dma_sched_tbl_init(blknum, usb_cppi41_info.q_mgr,
+		dma_sched_table, numch);
+	return 0;
+}
+
+int cppi41_enable_sched_rx(void)
+{
+	u16 numch = 8, blknum = usb_cppi41_info.dma_block;
+
+	dma_sched_table[0] = 0x81018000;
+	dma_sched_table[1] = 0x83038202;
+
+	cppi41_dma_sched_tbl_init(blknum, usb_cppi41_info.q_mgr,
+		dma_sched_table, numch);
+	return 0;
+}
+#endif
+
 /*
  * REVISIT (PM): we should be able to keep the PHY in low power mode most
  * of the time (24 MHZ oscillator and PLL off, etc) by setting POWER.D0
@@ -500,6 +526,12 @@ static irqreturn_t am3517_interrupt(int irq, void *hci)
 			cppi41_completion(musb, rx, tx);
 			ret = IRQ_HANDLED;
 		}
+
+		/* TODO: check if this is required */
+		/* handle the undocumented starvation interrupt bit:28 */
+		/* if(pend0 & 0x10000000)
+			ret = IRQ_HANDLED;
+		*/
 	}
 
 	/* Acknowledge and handle non-CPPI interrupts */

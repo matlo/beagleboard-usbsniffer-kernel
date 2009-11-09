@@ -713,3 +713,9 @@ int cppi41_get_teardown_info(unsigned long addr, u32 *info);
  * cppi41_exit - delete the instance created via cppi41_init()
  */
 void cppi41_exit(void);
+
+/**
+ * cppi41_dma_sched_tbl_init
+ */
+int cppi41_dma_sched_tbl_init(u8 dma_num, u8 q_mgr,
+				u32 *sched_tbl, u8 tbl_size);
