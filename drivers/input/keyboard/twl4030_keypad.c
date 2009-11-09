@@ -446,6 +446,22 @@ static int __devexit twl4030_kp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int twl4030_kp_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	return 0;
+}
+
+static int twl4030_kp_resume(struct platform_device *pdev)
+{
+	return 0;
+}
+#else
+#define twl4030_kp_suspend	NULL
+#define twl4030_kp_resume	NULL
+#endif
+
+
 /*
  * NOTE: twl4030 are multi-function devices connected via I2C.
  * So this device is a child of an I2C parent, thus it needs to
@@ -455,6 +471,8 @@ static int __devexit twl4030_kp_remove(struct platform_device *pdev)
 static struct platform_driver twl4030_kp_driver = {
 	.probe		= twl4030_kp_probe,
 	.remove		= __devexit_p(twl4030_kp_remove),
+	.suspend        = twl4030_kp_suspend,
+	.resume         = twl4030_kp_resume,
 	.driver		= {
 		.name	= "twl4030_keypad",
 		.owner	= THIS_MODULE,
