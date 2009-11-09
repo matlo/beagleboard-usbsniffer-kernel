@@ -40,6 +40,7 @@
 #include <plat/board.h>
 #include <plat/usb.h>
 #include <plat/common.h>
+#include <plat/control.h>
 #include <plat/mcspi.h>
 #include <plat/clock.h>
 #include <plat/omap-pm.h>
@@ -49,6 +50,7 @@
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 #include "pm.h"
+#include "prm-regbits-34xx.h"
 #include "omap3-opp.h"
 #include "board-omap3evm-camera.h"
 
@@ -401,6 +403,84 @@ static struct platform_device leds_gpio = {
 	},
 };
 
+#ifdef CONFIG_PM
+/*
+ * Save the state of keypad
+ *
+ * TODO: This definition should ideally be in a header file, but
+ *       matrix_keypad.h is not the right one. Also, plat/keypad.h
+ *       is no longer used.
+ */
+struct omap_keypad_pm_state {
+	void __iomem *wk_st;
+	void __iomem *wk_en;
+	u32 wk_mask;
+	u32 padconf;
+};
+
+/*
+ * Board specific hook for keypad suspend
+ */
+void omap3_evm_kp_suspend(void *ptr)
+{
+	struct omap_keypad_pm_state *pstate =
+			(struct omap_keypad_pm_state *)ptr;
+
+	if (pstate) {
+		/*
+		 * Set wake-enable bit
+		 */
+		if (pstate->wk_en && pstate->wk_mask) {
+			u32 v = __raw_readl(pstate->wk_en);
+			v |= pstate->wk_mask;
+			__raw_writel(v, pstate->wk_en);
+		}
+		/*
+		 * Set corresponding IOPAD wakeup-enable
+		 */
+		if (cpu_is_omap34xx() && pstate->padconf) {
+			u16 v = omap_ctrl_readw(pstate->padconf);
+			v |= OMAP3_PADCONF_WAKEUPENABLE0;
+			omap_ctrl_writew(v, pstate->padconf);
+		}
+	}
+}
+
+/*
+ * Board specific hook for keypad resume
+ */
+void omap3_evm_kp_resume(void *ptr)
+{
+	struct omap_keypad_pm_state *pstate =
+			(struct omap_keypad_pm_state *)ptr;
+
+	if (pstate) {
+		/*
+		 * Clear wake-enable bit
+		 */
+		if (pstate->wk_en && pstate->wk_mask) {
+			u32 v = __raw_readl(pstate->wk_en);
+			v &= ~pstate->wk_mask;
+			__raw_writel(v, pstate->wk_en);
+		}
+		/*
+		 * Clear corresponding IOPAD wakeup-enable
+		 */
+		if (cpu_is_omap34xx() && pstate->padconf) {
+			u16 v = omap_ctrl_readw(pstate->padconf);
+			v &= ~OMAP3_PADCONF_WAKEUPENABLE0;
+			omap_ctrl_writew(v, pstate->padconf);
+		}
+	}
+}
+
+static struct omap_keypad_pm_state omap3evm_kp_pm_state = {
+	.wk_st		= OMAP34XX_PRM_REGADDR(WKUP_MOD, PM_WKST1),
+	.wk_en		= OMAP34XX_PRM_REGADDR(WKUP_MOD, PM_WKEN1),
+	.wk_mask	= OMAP3430_EN_GPIO1,
+	.padconf	= 0x1e0,
+};
+#endif	/* CONFIG_PM */
 
 static int omap3evm_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
@@ -479,6 +559,11 @@ static struct twl4030_keypad_data omap3evm_kp_data = {
 	.rows		= 4,
 	.cols		= 4,
 	.rep		= 1,
+#ifdef CONFIG_PM
+	.pm_state	= (void *)&omap3evm_kp_pm_state,
+	.on_suspend	= omap3_evm_kp_suspend,
+	.on_resume	= omap3_evm_kp_resume,
+#endif	/* CONFIG_PM */
 };
 
 static struct twl4030_madc_platform_data omap3evm_madc_data = {
