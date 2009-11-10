@@ -270,6 +270,12 @@ __v7_setup:
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
+
+#ifdef CONFIG_USER_PMON
+	mov	r0, #1
+	mcr	p15, 0, r0, c9, c14, 0
+#endif
+
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
 #ifdef CONFIG_CPU_ENDIAN_BE8
