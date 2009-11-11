@@ -128,28 +128,42 @@ const struct clkops clkops_omap3430es2_hsotgusb_wait = {
 };
 
 #ifdef CONFIG_CPU_FREQ
-static struct cpufreq_frequency_table freq_table[MAX_VDD1_OPP+1];
+
+static struct cpufreq_frequency_table *freq_table;
 
 void omap3_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
-	struct omap_opp *prcm;
 	int i = 0;
+	int opp_num;
+	struct omap_opp *opp = mpu_opps;
+	unsigned long freq = ULONG_MAX;
 
-	if (!mpu_opps)
+	if (!mpu_opps) {
+		pr_warning("%s: failed to initialize frequency"
+				"table\n", __func__);
 		return;
-
-	prcm = mpu_opps + MAX_VDD1_OPP;
-	for (; prcm->rate; prcm--) {
-		freq_table[i].index = i;
-		freq_table[i].frequency = prcm->rate / 1000;
-		i++;
+	}
+	opp_num = opp_get_opp_count(mpu_opps);
+	if (opp_num < 0) {
+		pr_err("%s: no opp table?\n", __func__);
+		return;
 	}
 
-	if (i == 0) {
-		printk(KERN_WARNING "%s: failed to initialize frequency \
-								table\n",
-								__func__);
+	freq_table = kmalloc(sizeof(struct cpufreq_frequency_table) *
+			(opp_num + 1), GFP_ATOMIC);
+	if (!freq_table) {
+		pr_warning("%s: failed to allocate frequency"
+				"table\n", __func__);
 		return;
+	}
+
+	while (!IS_ERR(opp = opp_find_freq_approx(opp, &freq,
+					OPP_SEARCH_LOW))) {
+		freq_table[i].index = i;
+		freq_table[i].frequency = freq / 1000;
+		i++;
+		/* set the next benchmark to search */
+		freq--;
 	}
 
 	freq_table[i].index = i;
