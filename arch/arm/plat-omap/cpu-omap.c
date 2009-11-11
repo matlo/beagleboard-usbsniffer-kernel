@@ -111,14 +111,10 @@ static int omap_target(struct cpufreq_policy *policy,
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 #elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 	if (mpu_opps) {
-		int ind;
-		for (ind = 1; ind <= MAX_VDD1_OPP; ind++) {
-			if (mpu_opps[ind].rate/1000 >= target_freq) {
-				omap_pm_cpu_set_freq
-					(mpu_opps[ind].rate);
-				break;
-			}
-		}
+		unsigned long freq = target_freq * 1000;
+		if (!IS_ERR(opp_find_freq_approx(mpu_opps, &freq,
+					OPP_SEARCH_HIGH)))
+			omap_pm_cpu_set_freq(freq);
 	}
 #endif
 	return ret;
