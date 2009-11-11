@@ -146,50 +146,52 @@ static u32 cal_test_nvalue(u32 sennval, u32 senpval)
 		(rnsenn << NVALUERECIPROCAL_RNSENN_SHIFT);
 }
 
-/* determine the current OPP from the frequency
- * we need to give this function last element of OPP rate table
- * and the frequency
- */
-static u16 get_opp(struct omap_opp *opp_freq_table,
-					unsigned long freq)
+static u8 get_vdd1_opp(void)
 {
-	struct omap_opp *prcm_config;
-
-	prcm_config = opp_freq_table;
-
-	if (prcm_config->rate <= freq)
-		return prcm_config->opp_id; /* Return the Highest OPP */
-	for (; prcm_config->rate; prcm_config--)
-		if (prcm_config->rate < freq)
-			return (prcm_config+1)->opp_id;
-		else if (prcm_config->rate == freq)
-			return prcm_config->opp_id;
-	/* Return the least OPP */
-	return (prcm_config+1)->opp_id;
-}
-
-static u16 get_vdd1_opp(void)
-{
-	u16 opp;
+	struct omap_opp *opp;
+	unsigned long freq;
 
 	if (sr1.vdd_opp_clk == NULL || IS_ERR(sr1.vdd_opp_clk) ||
 							mpu_opps == NULL)
 		return 0;
 
-	opp = get_opp(mpu_opps + MAX_VDD1_OPP, sr1.vdd_opp_clk->rate);
-	return opp;
+	freq = sr1.vdd_opp_clk->rate;
+	opp = opp_find_freq_ceil(mpu_opps, &freq);
+	if (IS_ERR(opp))
+		return 0;
+	/*
+	 * Use higher freq voltage even if an exact match is not available
+	 * we are probably masking a clock framework bug, so warn
+	 */
+	if (unlikely(freq != sr1.vdd_opp_clk->rate))
+		pr_warning("%s: Available freq %ld != dpll freq %ld.\n",
+			   __func__, freq, sr1.vdd_opp_clk->rate);
+
+	return opp->opp_id;
 }
 
-static u16 get_vdd2_opp(void)
+static u8 get_vdd2_opp(void)
 {
-	u16 opp;
+	struct omap_opp *opp;
+	unsigned long freq;
 
 	if (sr2.vdd_opp_clk == NULL || IS_ERR(sr2.vdd_opp_clk) ||
 							l3_opps == NULL)
 		return 0;
 
-	opp = get_opp(l3_opps + MAX_VDD2_OPP, sr2.vdd_opp_clk->rate);
-	return opp;
+	freq = sr2.vdd_opp_clk->rate;
+	opp = opp_find_freq_ceil(l3_opps, &freq);
+	if (IS_ERR(opp))
+		return 0;
+
+	/*
+	 * Use higher freq voltage even if an exact match is not available
+	 * we are probably masking a clock framework bug, so warn
+	 */
+	if (unlikely(freq != sr2.vdd_opp_clk->rate))
+		pr_warning("%s: Available freq %ld != dpll freq %ld.\n",
+			   __func__, freq, sr2.vdd_opp_clk->rate);
+	return opp->opp_id;
 }
 
 
