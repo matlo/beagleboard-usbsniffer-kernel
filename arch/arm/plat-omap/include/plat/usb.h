@@ -18,6 +18,8 @@ struct ehci_hcd_omap_platform_data {
 
 	/* have to be valid if phy_reset is true and portx is in phy mode */
 	int	reset_gpio_port[OMAP3_HS_USB_PORTS];
+	/* flag for aux regulators */
+	u8	aux[OMAP3_HS_USB_PORTS];
 };
 
 /*-------------------------------------------------------------------------*/

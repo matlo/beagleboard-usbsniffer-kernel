@@ -197,6 +197,9 @@ struct ehci_hcd_omap {
 	 * Each PHY can have a seperate regulator.
 	 */
 	struct regulator        *regulator[OMAP3_HS_USB_PORTS];
+	struct regulator        *regulator_aux[OMAP3_HS_USB_PORTS];
+	/* flag for aux regulators */
+	u8			aux[OMAP3_HS_USB_PORTS];
 };
 
 /*-------------------------------------------------------------------------*/
@@ -863,6 +866,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 	int i;
 	char supply[7];
+	char supply_aux[11];
 
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "missing platform_data\n");
@@ -905,6 +909,9 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	omap->port_mode[0]		= pdata->port_mode[0];
 	omap->port_mode[1]		= pdata->port_mode[1];
 	omap->port_mode[2]		= pdata->port_mode[2];
+	omap->aux[0]			= pdata->aux[0];
+	omap->aux[1]			= pdata->aux[1];
+	omap->aux[2]			= pdata->aux[2];
 	omap->ehci		= hcd_to_ehci(hcd);
 	omap->ehci->sbrn	= 0x20;
 	gb_omap = omap;
@@ -955,6 +962,18 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 			"failed to get ehci port%d regulator\n", i);
 		else
 			regulator_enable(omap->regulator[i]);
+
+		/* enable auxiliary supply if required */
+		if (omap->aux[i]) {
+			snprintf(supply_aux, 11, "hsusb%d-aux", i);
+			omap->regulator_aux[i] =
+				regulator_get(omap->dev, supply_aux);
+			if (IS_ERR(omap->regulator_aux[i]))
+				dev_dbg(&pdev->dev,
+				"failed to get ehci port%d aux regulator\n", i);
+			else
+				regulator_enable(omap->regulator_aux[i]);
+		}
 	}
 
 	ret = omap_start_ehc(omap, hcd);
@@ -1038,6 +1057,11 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 			if (regulator_is_enabled(omap->regulator[i]))
 				regulator_disable(omap->regulator[i]);
 			regulator_put(omap->regulator[i]);
+		}
+		if (omap->regulator_aux[i]) {
+			if (regulator_is_enabled(omap->regulator_aux[i]))
+				regulator_disable(omap->regulator_aux[i]);
+			regulator_put(omap->regulator_aux[i]);
 		}
 	}
 	iounmap(omap->tll_base);

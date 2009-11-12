@@ -688,7 +688,11 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	/* PHY reset GPIO will be runtime programmed based on EVM version */
 	.reset_gpio_port[0]  = -EINVAL,
 	.reset_gpio_port[1]  = -EINVAL,
-	.reset_gpio_port[2]  = -EINVAL
+	.reset_gpio_port[2]  = -EINVAL,
+
+	.aux[0]	= 0,
+	.aux[1]	= 0,
+	.aux[2]	= 0,
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -737,6 +741,9 @@ static void __init omap3_evm_init(void)
 		/* setup EHCI phy reset on MDC */
 		omap_mux_init_gpio(135, OMAP_PIN_OUTPUT);
 		ehci_pdata.reset_gpio_port[1] = 135;
+
+		/* MDC also need VUSB1V5 regulator */
+		ehci_pdata.aux[1] = 1;
 	}
 	usb_musb_init();
 	usb_ehci_init(&ehci_pdata);
