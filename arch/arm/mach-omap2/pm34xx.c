@@ -38,6 +38,7 @@
 #include <plat/gpmc.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
+#include <plat/usb.h>
 
 #include <asm/tlbflush.h>
 
@@ -440,6 +441,11 @@ void omap_sram_idle(void)
 			omap3_prcm_restore_context();
 			omap3_sram_restore_context();
 			omap2_sms_restore_context();
+			/*
+			 * Errata 1.164 fix : OTG autoidle can prevent
+			 * sleep
+			 */
+			usb_musb_disable_autoidle();
 		}
 		omap_uart_resume_idle(0);
 		omap_uart_resume_idle(1);
