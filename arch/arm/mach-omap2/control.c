@@ -152,31 +152,37 @@ u8 omap_ctrl_readb(u16 offset)
 {
 	return __raw_readb(OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_readb);
 
 u16 omap_ctrl_readw(u16 offset)
 {
 	return __raw_readw(OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_readw);
 
 u32 omap_ctrl_readl(u16 offset)
 {
 	return __raw_readl(OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_readl);
 
 void omap_ctrl_writeb(u8 val, u16 offset)
 {
 	__raw_writeb(val, OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_writeb);
 
 void omap_ctrl_writew(u16 val, u16 offset)
 {
 	__raw_writew(val, OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_writew);
 
 void omap_ctrl_writel(u32 val, u16 offset)
 {
 	__raw_writel(val, OMAP_CTRL_REGADDR(offset));
 }
+EXPORT_SYMBOL(omap_ctrl_writel);
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
