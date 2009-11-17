@@ -786,9 +786,7 @@ config VIDEO_CAFE_CCIC
 
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
-	select VIDEOBUF_GEN
-	select VIDEOBUF_DMA_SG
-	select OMAP_IOMMU
+	select VIDEO_OMAP3_ISP
 	depends on VIDEO_V4L2 && ARCH_OMAP34XX
 	---help---
 	  Driver for an OMAP 3 camera controller.
