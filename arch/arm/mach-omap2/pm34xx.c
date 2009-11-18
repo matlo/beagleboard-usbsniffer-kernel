@@ -589,6 +589,8 @@ void omap_sram_idle(void)
 
 int omap3_can_sleep(void)
 {
+	if (cpu_is_omap3505() || cpu_is_omap3517())
+		return 0;
 	if (!sleep_while_idle)
 		return 0;
 	if (!omap_uart_can_sleep())
