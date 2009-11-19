@@ -365,6 +365,29 @@ struct musb {
 	void __iomem		*sync_va;
 #endif
 
+#ifdef CONFIG_MACH_OMAP3517EVM
+/* Backup registers required for the workaround of AM3517 bytewise
+ * read issue. FADDR, POWER, INTRTXE, INTRRXE and INTRUSBE register
+ * read would actually clear the interrupt registers and would cause
+ * missing interrupt event.
+ * Only POWER register has a few read-only bits and other registers
+ * are programmed by software so any read to them would get the last
+ * written data dave in below registers.Even for POWER registers
+ * we need to read actual registers only at few places where we want
+ * to know the status of read-only bits.
+ */
+#define AM3517_READ_ISSUE_FADDR		BIT(0)
+#define AM3517_READ_ISSUE_POWER		BIT(1)
+#define AM3517_READ_ISSUE_INTRTXE	BIT(2)
+#define AM3517_READ_ISSUE_INTRRXE	BIT(3)
+#define AM3517_READ_ISSUE_INTRUSBE	BIT(4)
+	u8			read_mask;
+	u8			faddr;
+	u8			power;
+	u16			intrtxe;
+	u16			intrrxe;
+	u8			intrusbe;
+#endif
 	/* passed down from chip/board specific irq handlers */
 	u8			int_usb;
 	u16			int_rx;

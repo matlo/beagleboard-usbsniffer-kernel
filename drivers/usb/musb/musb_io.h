@@ -56,7 +56,7 @@ static inline void writesb(const void __iomem *addr, const void *buf, int len)
 
 #endif
 
-#ifndef CONFIG_BLACKFIN
+#if !defined(CONFIG_BLACKFIN) && !defined(CONFIG_MACH_OMAP3517EVM)
 
 /* NOTE:  these offsets are all in bytes */
 
@@ -116,7 +116,7 @@ static inline void musb_writeb(void __iomem *addr, unsigned offset, u8 data)
 
 #endif	/* CONFIG_USB_TUSB6010 */
 
-#else
+#elif defined(CONFIG_BLACKFIN)
 
 static inline u8 musb_readb(const void __iomem *addr, unsigned offset)
 	{ return (u8) (bfin_read16(addr + offset)); }
@@ -136,6 +136,26 @@ static inline void musb_writew(void __iomem *addr, unsigned offset, u16 data)
 static inline void musb_writel(void __iomem *addr, unsigned offset, u32 data)
 	{ bfin_write16(addr + offset, (u16) data); }
 
-#endif /* CONFIG_BLACKFIN */
+#elif defined(CONFIG_MACH_OMAP3517EVM)
+
+/* AM3517 has a limitation on read operation. Only 32 bit read is
+ * allowed and thus 8bit and 16bit read has to be handled differently
+ * using 32bit read only.
+ * We also need to workaround of scenario where reading an 8bit
+ * register would accidently clear the interrupt register causing
+ * an interrupt event miss.
+ */
+extern u16 musb_readw(const void __iomem *addr, unsigned offset);
+extern void musb_writew(void __iomem *addr, unsigned offset, u16 data);
+extern u8 musb_readb(const void __iomem *addr, unsigned offset);
+extern void musb_writeb(void __iomem *addr, unsigned offset, u8 data);
+
+static inline u32 musb_readl(const void __iomem *addr, unsigned offset)
+	{ return __raw_readl(addr + offset); }
+
+static inline void musb_writel(void __iomem *addr, unsigned offset, u32 data)
+	{ __raw_writel(data, addr + offset); }
+
+#endif /* CONFIG_BLACKFIN || CONFIG_MACH_OMAP3517EVM */
 
 #endif

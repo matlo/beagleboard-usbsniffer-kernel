@@ -2004,6 +2004,9 @@ __acquires(musb->lock)
 
 
 	/* what speed did we negotiate? */
+#ifdef CONFIG_MACH_OMAP3517EVM
+	musb->read_mask &= ~AM3517_READ_ISSUE_POWER;
+#endif
 	power = musb_readb(mbase, MUSB_POWER);
 	musb->g.speed = (power & MUSB_POWER_HSMODE)
 			? USB_SPEED_HIGH : USB_SPEED_FULL;

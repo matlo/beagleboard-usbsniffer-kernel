@@ -36,6 +36,7 @@
 #include "musb_core.h"
 #include "cppi41_dma.h"
 
+struct musb *g_musb;
 /*
  * AM3517 specific definitions
  */
@@ -71,6 +72,138 @@
 
 #define A_WAIT_BCON_TIMEOUT	1100		/* in ms */
 
+/* AM3517 specific read/write functions */
+u16 musb_readw(const void __iomem *addr, unsigned offset)
+{
+	u32 tmp;
+	u16 val;
+
+	if (addr == g_musb->mregs) {
+
+		switch (offset) {
+		case MUSB_INTRTXE:
+			if (g_musb->read_mask & AM3517_READ_ISSUE_INTRTXE)
+				return g_musb->intrtxe;
+		case MUSB_INTRRXE:
+			if (g_musb->read_mask & AM3517_READ_ISSUE_INTRRXE)
+				return g_musb->intrrxe;
+		default:
+			break;
+		}
+	}
+
+	tmp = __raw_readl(addr + (offset & ~3));
+
+	switch (offset & 0x3) {
+	case 0:
+		val = (tmp & 0xffff);
+		break;
+	case 1:
+		val = (tmp >> 8) & 0xffff;
+		break;
+	case 2:
+	case 3:
+	default:
+		val = (tmp >> 16) & 0xffff;
+		break;
+	}
+	return val;
+}
+void musb_writew(void __iomem *addr, unsigned offset, u16 data)
+{
+	if (addr == g_musb->mregs) {
+
+		switch (offset) {
+		case MUSB_INTRTXE:
+			g_musb->read_mask |= AM3517_READ_ISSUE_INTRTXE;
+			g_musb->intrtxe = data;
+			break;
+		case MUSB_INTRRXE:
+			g_musb->read_mask |= AM3517_READ_ISSUE_INTRRXE;
+			g_musb->intrrxe = data;
+		default:
+			break;
+		}
+	}
+
+	 __raw_writew(data, addr + offset);
+}
+u8 musb_readb(const void __iomem *addr, unsigned offset)
+{
+	u32 tmp;
+	u8 val;
+
+	if (addr == g_musb->mregs) {
+
+		switch (offset) {
+		case MUSB_FADDR:
+			if (g_musb->read_mask & AM3517_READ_ISSUE_FADDR)
+				return g_musb->faddr;
+		case MUSB_POWER:
+			if (g_musb->read_mask & AM3517_READ_ISSUE_POWER) {
+				return g_musb->power;
+			} else {
+				tmp = __raw_readl(addr);
+				val = (tmp >> 8);
+				if (tmp & 0xffff0000) {
+					DBG(2, "Missing Tx interrupt\
+						event = 0x%x\n", (u16)\
+						((tmp & 0xffff0000) >> 16));
+				}
+				g_musb->power = val;
+				g_musb->read_mask |= AM3517_READ_ISSUE_POWER;
+				return val;
+			}
+		case MUSB_INTRUSBE:
+			if (g_musb->read_mask & AM3517_READ_ISSUE_INTRUSBE)
+				return g_musb->intrusbe;
+		default:
+			break;
+		}
+	}
+
+	tmp = __raw_readl(addr + (offset & ~3));
+
+	switch (offset & 0x3) {
+	case 0:
+		val = tmp & 0xff;
+		break;
+	case 1:
+		val = (tmp >> 8);
+		break;
+	case 2:
+		val = (tmp >> 16);
+		break;
+	case 3:
+	default:
+		val = (tmp >> 24);
+		break;
+	}
+	return val;
+}
+void musb_writeb(void __iomem *addr, unsigned offset, u8 data)
+{
+	if (addr == g_musb->mregs) {
+
+		switch (offset) {
+		case MUSB_FADDR:
+			g_musb->read_mask |= AM3517_READ_ISSUE_FADDR;
+			g_musb->faddr = data;
+			break;
+		case MUSB_POWER:
+			g_musb->read_mask |= AM3517_READ_ISSUE_POWER;
+			g_musb->power = data;
+			break;
+		case MUSB_INTRUSBE:
+			g_musb->read_mask |= AM3517_READ_ISSUE_INTRUSBE;
+			g_musb->intrusbe = data;
+		default:
+			break;
+		}
+	}
+
+	 __raw_writeb(data, addr + offset);
+}
 #ifdef CONFIG_USB_TI_CPPI41_DMA
 
 /*
@@ -675,6 +808,8 @@ int __init musb_platform_init(struct musb *musb)
 	void __iomem *reg_base = musb->ctrl_base;
 	struct clk              *otg_fck;
 	u32 rev, lvl_intr, sw_reset;
+
+	g_musb = musb;
 
 	usb_nop_xceiv_register();
 
