@@ -313,6 +313,15 @@ static void sr_configure_vp(int srid)
 			PRM_VP1_CONFIG_TIMEOUTEN |
 			vsel << OMAP3430_INITVOLTAGE_SHIFT;
 
+		/*
+		 * Update the 'ON' voltage levels based on the VSEL.
+		 * (See spruf8c.pdf sec 1.5.3.1)
+		 */
+		prm_rmw_mod_reg_bits(OMAP3430_VC_CMD_ON_MASK,
+				(vsel << OMAP3430_VC_CMD_ON_SHIFT),
+				OMAP3430_GR_MOD,
+				OMAP3_PRM_VC_CMD_VAL_0_OFFSET);
+
 		prm_write_mod_reg(vpconfig, OMAP3430_GR_MOD,
 					OMAP3_PRM_VP1_CONFIG_OFFSET);
 		prm_write_mod_reg(PRM_VP1_VSTEPMIN_SMPSWAITTIMEMIN |
@@ -354,6 +363,15 @@ static void sr_configure_vp(int srid)
 		else
 			vsel = l3_opps[target_opp_no].vsel;
 
+		/*
+		 * Update the 'ON' voltage levels based on the VSEL.
+		 * (See spruf8c.pdf sec 1.5.3.1)
+		 */
+		prm_rmw_mod_reg_bits(OMAP3430_VC_CMD_ON_MASK,
+				(vsel << OMAP3430_VC_CMD_ON_SHIFT),
+				OMAP3430_GR_MOD,
+				OMAP3_PRM_VC_CMD_VAL_1_OFFSET);
+
 		vpconfig = PRM_VP2_CONFIG_ERROROFFSET |
 			PRM_VP2_CONFIG_ERRORGAIN |
 			PRM_VP2_CONFIG_TIMEOUTEN |
@@ -391,7 +409,6 @@ static void sr_configure_vp(int srid)
 		/* Clear force bit */
 		prm_clear_mod_reg_bits(OMAP3430_FORCEUPDATE, OMAP3430_GR_MOD,
 				       OMAP3_PRM_VP2_CONFIG_OFFSET);
-
 	}
 }
 
