@@ -33,6 +33,7 @@ struct cpuidle_params {
 
 #if defined(CONFIG_PM) && defined(CONFIG_CPU_IDLE)
 extern void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params);
+extern void omap3_cpuidle_update_states(void);
 #else
 static 
 inline void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)

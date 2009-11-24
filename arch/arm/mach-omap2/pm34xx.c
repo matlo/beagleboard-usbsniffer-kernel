@@ -1033,6 +1033,10 @@ void omap3_pm_off_mode_enable(int enable)
 	else
 		state = PWRDM_POWER_RET;
 
+#ifdef CONFIG_CPU_IDLE
+	omap3_cpuidle_update_states();
+#endif
+
 #ifdef CONFIG_OMAP_PM_SRF
 	resource_lock_opp(VDD1_OPP);
 	resource_lock_opp(VDD2_OPP);
