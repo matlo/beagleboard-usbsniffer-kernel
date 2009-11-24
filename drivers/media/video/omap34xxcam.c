@@ -35,6 +35,9 @@
 #include <linux/videodev2.h>
 #include <linux/version.h>
 #include <linux/sched.h>
+#include <linux/vmalloc.h>
+#include <linux/mm.h>
+#include <linux/dma-mapping.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -223,6 +226,65 @@ static void omap34xxcam_vbq_release(struct videobuf_queue *vbq,
 	return;
 }
 
+
+
+/*
+ * This function is work around for the videobuf_iolock API,
+ * for User memory allocated with ioremap (VM_IO flag) the API
+ * get_user_pages fails.
+ *
+ * To fulfill this requirement, we have completely ignored VM layer of
+ * Linux, and configuring the ISP MMU with physical address.
+ */
+static int omap_videobuf_dma_init_user(struct videobuf_buffer *vb,
+		unsigned long physp, unsigned long asize)
+{
+	struct videobuf_dmabuf *dma;
+	struct scatterlist *sglist;
+	unsigned long data, first, last;
+	int i = 0;
+
+	dma = videobuf_to_dma(vb);
+	data = vb->baddr;
+
+	first = (data & PAGE_MASK) >> PAGE_SHIFT;
+	last  = ((data+asize-1) & PAGE_MASK) >> PAGE_SHIFT;
+	dma->offset   = data & ~PAGE_MASK;
+	dma->nr_pages = last-first+1;
+
+	dma->direction = DMA_FROM_DEVICE;
+
+	BUG_ON(0 == dma->nr_pages);
+	/*
+	 * Allocate array of sglen + 1, to add entry of extra page
+	 * for input buffer. Driver always uses 0th buffer as input buffer.
+	 */
+	sglist = vmalloc(dma->nr_pages * sizeof(*sglist));
+	if (NULL == sglist)
+		return -ENOMEM;
+
+	sg_init_table(sglist, dma->nr_pages);
+
+	sglist[0].offset = 0;
+	sglist[0].length = PAGE_SIZE - dma->offset;
+	sglist[0].dma_address = (dma_addr_t)physp;
+	physp += sglist[0].length;
+	/*
+	 * Iterate in a loop for the number of pages
+	 */
+	for (i = 1; i < dma->nr_pages; i++) {
+		sglist[i].offset = 0;
+		sglist[i].length = PAGE_SIZE;
+		sglist[i].dma_address = (dma_addr_t)physp;
+		physp += PAGE_SIZE;
+	}
+	dma->sglist = sglist;
+	dma->sglen = dma->nr_pages;
+
+	return 0;
+
+}
+
 /**
  * omap34xxcam_vbq_prepare - V4L2 video ops buf_prepare handler
  * @vbq: ptr. to standard V4L2 video buffer queue structure
@@ -269,7 +331,36 @@ static int omap34xxcam_vbq_prepare(struct videobuf_queue *vbq,
 	vb->field = field;
 
 	if (vb->state == VIDEOBUF_NEEDS_INIT) {
-		err = videobuf_iolock(vbq, vb, NULL);
+		struct videobuf_dmabuf *dma;
+		struct vm_area_struct *vma;
+		dma = videobuf_to_dma(vb);
+		vma = find_vma(current->mm, vb->baddr);
+		if ((vma) && (vma->vm_flags & VM_IO) && (vma->vm_pgoff)) {
+			/* This will catch ioremaped buffers to the kernel.
+			 *  It gives two possible scenarios -
+			 *  - Driver allocates buffer using either
+			 *    dma_alloc_coherent or get_free_pages,
+			 *    and maps to user space using
+			 *    io_remap_pfn_range/remap_pfn_range
+			 *  - Drivers maps memory outside from Linux using
+			 *    io_remap
+			 */
+			unsigned long physp = 0;
+			if ((vb->baddr + vb->bsize) > vma->vm_end) {
+				dev_err(&vdev->vfd->dev,
+						"User Buffer Allocation:" \
+						"err=%lu[%lu]\n",\
+						(vma->vm_end - vb->baddr),
+						vb->bsize);
+				return -ENOMEM;
+			}
+			physp = (vma->vm_pgoff << PAGE_SHIFT) +
+				(vb->baddr - vma->vm_start);
+			err = omap_videobuf_dma_init_user(vb, physp, vb->bsize);
+		} else {
+			err = videobuf_iolock(vbq, vb, NULL);
+		}
+
 		if (!err) {
 			/* isp_addr will be stored locally inside isp code */
 			err = isp_vbq_prepare(isp, vbq, vb, field);
