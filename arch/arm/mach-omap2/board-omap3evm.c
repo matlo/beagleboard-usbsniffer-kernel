@@ -279,7 +279,11 @@ static struct omap_dss_device omap3_evm_tv_device = {
 	.name			= "tv",
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
+#if defined(CONFIG_OMAP2_VENC_OUT_TYPE_SVIDEO)
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+#elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
+	.phy.venc.type		= OMAP_DSS_VENC_TYPE_COMPOSITE,
+#endif
 	.platform_enable	= omap3_evm_enable_tv,
 	.platform_disable	= omap3_evm_disable_tv,
 };

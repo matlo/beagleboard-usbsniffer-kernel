@@ -36,6 +36,21 @@ config OMAP2_DSS_VENC
         default y
 	help
 	  OMAP Video Encoder support.
+choice
+	prompt OMAP2_VENC_OUT_TYPE
+	depends on OMAP2_DSS_VENC
+	default OMAP2_VENC_OUT_TYPE_SVIDEO
+
+config OMAP2_VENC_OUT_TYPE_SVIDEO
+	bool "Use S-Video output interface"
+	help
+	  Select this option if you want to choose TV out over S-Video
+
+config OMAP2_VENC_OUT_TYPE_COMPOSITE
+	bool "Use Composite output interface"
+	help
+	  Select this option if you want to choose TV out over Composite
+endchoice
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
