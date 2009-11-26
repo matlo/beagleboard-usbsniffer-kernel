@@ -154,6 +154,21 @@ static struct emac_platform_data am3517_evm_emac_pdata = {
 	.rmii_en        = 1,
 };
 
+static int __init eth_addr_setup(char *str)
+{
+	int i;
+
+	if(str == NULL)
+		return 0;
+	for(i = 0; i <  ETH_ALEN; i++)
+		am3517_evm_emac_pdata.mac_addr[i] = simple_strtol(&str[i*3],
+							(char **)NULL, 16);
+	return 1;
+}
+
+/* Get MAC address from kernel boot parameter eth=AA:BB:CC:DD:EE:FF */
+__setup("eth=", eth_addr_setup);
+
 static struct resource am3517_emac_resources[] = {
 	{
 		.start  = AM35XX_IPSS_EMAC_BASE,
