@@ -1273,6 +1273,7 @@ static int isp_stop_modules(struct device *dev)
 	return __isp_disable_modules(dev, 0);
 }
 
+#ifdef CONFIG_PM
 /**
  * isp_suspend_modules - Suspend ISP submodules.
  * @dev: Device pointer specific to the OMAP3 ISP.
@@ -1297,6 +1298,7 @@ static void isp_resume_modules(struct device *dev)
 	isph3a_aewb_resume(&isp->isp_h3a);
 	isp_af_resume(&isp->isp_af);
 }
+#endif	/* CONFIG_PM */
 
 /**
  * isp_reset - Reset ISP with a timeout wait for idle.
