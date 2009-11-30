@@ -30,6 +30,10 @@ obj-y += $(i2c-omap-m) $(i2c-omap-y)
 # OMAP mailbox framework
 obj-$(CONFIG_OMAP_MBOX_FWK) += mailbox.o
 
+#PSP version information
+obj-$(CONFIG_MACH_AM3517EVM) += psp-version.o
+obj-$(CONFIG_MACH_OMAP3EVM) += psp-version.o
+
 obj-$(CONFIG_OMAP_PM_NOOP) += omap-pm-noop.o
 obj-$(CONFIG_OMAP_PM_SRF) += omap-pm-srf.o \
 				resource.o
