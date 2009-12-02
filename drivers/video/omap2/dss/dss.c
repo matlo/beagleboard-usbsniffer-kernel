@@ -34,8 +34,12 @@
 #include "dss.h"
 
 #define DSS_BASE			0x48050000
-
 #define DSS_SZ_REGS			SZ_512
+#if defined(CONFIG_MACH_OMAP_ZOOM3) || defined(CONFIG_MACH_OMAP_3630SDP)
+#define FCK_MAX_DIV			32
+#else
+#define FCK_MAX_DIV			16
+#endif
 
 struct dss_reg {
 	u16 idx;
@@ -220,7 +224,13 @@ void dss_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "dpll4_ck %lu\n", dpll4_ck_rate);
 
-	seq_printf(s, "dss1_alwon_fclk = %lu / %lu * 2 = %lu\n",
+	if (cpu_is_omap3630())
+		seq_printf(s, "dss1_alwon_fclk = %lu / %lu  = %lu\n",
+			dpll4_ck_rate,
+			dpll4_ck_rate / dpll4_m4_ck_rate,
+			dss_clk_get_rate(DSS_CLK_FCK1));
+	else
+		seq_printf(s, "dss1_alwon_fclk = %lu / %lu * 2 = %lu\n",
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
 			dss_clk_get_rate(DSS_CLK_FCK1));
@@ -271,7 +281,7 @@ int dss_calc_clock_rates(struct dss_clock_info *cinfo)
 {
 	unsigned long prate;
 
-	if (cinfo->fck_div > 16 || cinfo->fck_div == 0)
+	if (cinfo->fck_div > FCK_MAX_DIV || cinfo->fck_div == 0)
 		return -EINVAL;
 
 	prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
@@ -307,7 +317,10 @@ int dss_get_clock_div(struct dss_clock_info *cinfo)
 	if (cpu_is_omap34xx()) {
 		unsigned long prate;
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
-		cinfo->fck_div = prate / (cinfo->fck / 2);
+		if (cpu_is_omap3630())
+			cinfo->fck_div = prate / (cinfo->fck);
+		else
+			cinfo->fck_div = prate / (cinfo->fck / 2);
 	} else {
 		cinfo->fck_div = 0;
 	}
@@ -380,10 +393,13 @@ retry:
 
 		goto found;
 	} else if (cpu_is_omap34xx()) {
-		for (fck_div = 16; fck_div > 0; --fck_div) {
+		for (fck_div = FCK_MAX_DIV; fck_div > 0; --fck_div) {
 			struct dispc_clock_info cur_dispc;
 
-			fck = prate / fck_div * 2;
+			if (cpu_is_omap3630())
+				fck = prate / fck_div;
+			else
+				fck = prate / fck_div * 2;
 
 			if (fck > DISPC_MAX_FCK)
 				continue;
