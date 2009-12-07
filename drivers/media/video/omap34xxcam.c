@@ -349,7 +349,7 @@ static int omap34xxcam_vbq_prepare(struct videobuf_queue *vbq,
 			if ((vb->baddr + vb->bsize) > vma->vm_end) {
 				dev_err(&vdev->vfd->dev,
 						"User Buffer Allocation:" \
-						"err=%lu[%lu]\n",\
+						"err=%lu[%u]\n",\
 						(vma->vm_end - vb->baddr),
 						vb->bsize);
 				return -ENOMEM;
@@ -473,16 +473,12 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct omap34xxcam_fh *ofh = fh;
 	struct omap34xxcam_videodev *vdev = ofh->vdev;
-	struct device *isp = vdev->cam->isp;
 
 	if (vdev->vdev_sensor == v4l2_int_device_dummy())
 		return -EINVAL;
 
 	mutex_lock(&vdev->mutex);
-	if (vdev->vdev_sensor_mode)
-		isp_g_fmt_cap(isp, &f->fmt.pix);
-	else
-		f->fmt.pix = vdev->pix;
+	f->fmt.pix = vdev->pix;
 	mutex_unlock(&vdev->mutex);
 
 	return 0;

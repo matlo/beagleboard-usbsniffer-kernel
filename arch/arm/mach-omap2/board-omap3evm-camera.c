@@ -30,7 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/mm.h>
 #include <linux/videodev2.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/delay.h>
 
 #include <plat/mux.h>
@@ -43,6 +43,7 @@
 #include <../drivers/media/video/omap34xxcam.h>
 #include <../drivers/media/video/isp/ispreg.h>
 
+#include "mux.h"
 #include "board-omap3evm-camera.h"
 
 #define MODULE_NAME			"omap3evmdc"
@@ -247,30 +248,30 @@ static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 		 *	TWL4030 GPIO.
 		 */
 		/* Enable TWL GPIO Module */
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, 0x04, REG_GPIO_CTRL);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, 0x04, REG_GPIO_CTRL);
 
 		/* First Level Enable GPIO */
 		/* Configure GPIO2 as output */
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR1);
+		twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR1);
 		val |= 0x04;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR1);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR1);
 		/* Set GPIO-2 pull-up */
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR1);
+		twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR1);
 		val |= 0x20;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR1);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR1);
 		/* Set GPIO-2 = 0 */
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATAOUT1);
+		twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATAOUT1);
 		val &= ~0x04;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATAOUT1);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATAOUT1);
 
 		/* Configure GPIO8 as output*/
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR2);
+		twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIODATADIR2);
 		val |= 0x1;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR2);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIODATADIR2);
 		/* GPIO-8 pull down */
-		twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR3);
+		twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val, REG_GPIOPUPDCTR3);
 		val |= 0x01;
-		twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR3);
+		twl_i2c_write_u8(TWL4030_MODULE_GPIO, val, REG_GPIOPUPDCTR3);
 
 		/* Assert the reset signal */
 		gpio_set_value(GPIO98_VID_DEC_RES, 0);
@@ -281,19 +282,19 @@ static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 	case MUX_TVP5146:
 		if (ENABLE_MUX == value) {
 			/* Set GPIO8 = 0 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val &= ~0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 
 			gpio_set_value(nCAM_VD_SEL, 1);
 		} else {
 			/* Set GPIO8 = 0 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val |= 0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 		}
 		break;
@@ -301,19 +302,19 @@ static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 	case MUX_CAMERA_SENSOR:
 		if (ENABLE_MUX == value) {
 			/* Set GPIO8 = 0 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val &= ~0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 
 			gpio_set_value(nCAM_VD_SEL, 0);
 		} else {
 			/* Set GPIO8 = 0 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val |= 0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 		}
 		break;
@@ -321,18 +322,18 @@ static int omap3evm_set_mux(enum omap3evmdc_mux mux_id, enum config_mux value)
 	case MUX_EXP_CAMERA_SENSOR:
 		if (ENABLE_MUX == value) {
 			/* Set GPIO8 = 1 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val |= 0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 
 		} else {
 			/* Set GPIO8 = 0 */
-			twl4030_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
+			twl_i2c_read_u8(TWL4030_MODULE_GPIO, &val,
 					REG_GPIODATAOUT2);
 			val &= ~0x1;
-			twl4030_i2c_write_u8(TWL4030_MODULE_GPIO, val,
+			twl_i2c_write_u8(TWL4030_MODULE_GPIO, val,
 					REG_GPIODATAOUT2);
 		}
 		break;
@@ -421,7 +422,7 @@ static int omap3evmdc_mdc_config(void)
 {
 	if (is_dec_onboard) {
 		/* Enable Video Decoder */
-		omap_cfg_reg(AA21_34XX_GPIO157);
+		omap_mux_init_gpio(157, OMAP_PIN_INPUT_PULLUP);
 		if (gpio_request(nCAM_VD_SEL, "Vid-Dec Sel") < 0) {
 			printk(KERN_ERR "Failed to get GPIO 157\n");
 			return -EINVAL;
@@ -429,7 +430,7 @@ static int omap3evmdc_mdc_config(void)
 		gpio_direction_output(nCAM_VD_SEL, 1);
 		gpio_set_value(nCAM_VD_SEL, 1);
 
-		omap_cfg_reg(C23_34XX_GPIO98);
+		omap_mux_init_gpio(98, OMAP_PIN_INPUT_PULLUP);
 		if (gpio_request(GPIO98_VID_DEC_RES, "vid-dec reset") < 0) {
 			printk(KERN_ERR "failed to get GPIO98_VID_DEC_RES\n");
 			return -EINVAL;
@@ -438,9 +439,9 @@ static int omap3evmdc_mdc_config(void)
 	} else {
 
 		/* Setting the MUX configuration */
-		omap_cfg_reg(AG4_34XX_GPIO134_OUT);
-		omap_cfg_reg(U8_34XX_GPIO54_OUT);
-		omap_cfg_reg(AE4_34XX_GPIO136_OUT);
+		omap_mux_init_gpio(134, OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_gpio(54, OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_gpio(136, OMAP_PIN_INPUT_PULLUP);
 
 		if (gpio_request(GPIO134_SEL_TVP_Y, "TVP5146 Vid-in") < 0) {
 			printk(KERN_ERR MODULE_NAME ": Can't get GPIO 134\n");
