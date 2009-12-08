@@ -675,13 +675,8 @@ void sr_start_vddautocomap(int srid, u32 target_opp_no)
 		sr_configure(sr);
 	}
 
-	if (sr->is_autocomp_active == 1)
-		pr_warning("SR%d: VDD autocomp is already active\n",
-									srid);
-
 	sr->is_autocomp_active = 1;
 	if (!sr_enable(sr, target_opp_no)) {
-		pr_warning("SR%d: VDD autocomp not activated\n", srid);
 		sr->is_autocomp_active = 0;
 		if (sr->is_sr_reset == 1)
 			sr_clk_disable(sr);
@@ -707,11 +702,8 @@ int sr_stop_vddautocomap(int srid)
 		/* Reset the volatage for current OPP */
 		sr_reset_voltage(srid);
 		return true;
-	} else {
-		pr_warning("SR%d: VDD autocomp is not active\n",
-								srid);
+	} else
 		return false;
-	}
 
 }
 EXPORT_SYMBOL(sr_stop_vddautocomap);
