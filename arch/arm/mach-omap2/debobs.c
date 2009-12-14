@@ -214,21 +214,23 @@ int debug_gpio_get(unsigned gpio)
 	return -EINVAL;
 }
 
+static char debobs_names[NUM_OF_DEBOBS_PADS][10];
+
 int __init init_debobs(void)
 {
 	struct dentry *debobs_root;
 	int i, err;
-	char name[10];
 
 	debobs_root = debugfs_create_dir("debobs", NULL);
 	if (IS_ERR(debobs_root))
 		return PTR_ERR(debobs_root);
 
 	for (i = 0; i < NUM_OF_DEBOBS_PADS; i++) {
-		snprintf(name, sizeof(name), "hw_dbg%d", i);
-		if (!gpio_request(ETK_GPIO(i), name)) {
-			err = _new_debobs_pad(&debobs_pads[i], name, i,
-						debobs_root);
+		snprintf(debobs_names[i], sizeof(debobs_names[i]),
+			 "hw_dbg%d", i);
+		if (!gpio_request(ETK_GPIO(i), debobs_names[i])) {
+			err = _new_debobs_pad(&debobs_pads[i], debobs_names[i],
+					      i, debobs_root);
 		} else
 			gpio_free(ETK_GPIO(i));
 	}
