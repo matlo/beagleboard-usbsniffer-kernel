@@ -1165,8 +1165,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	/* take a first sample, leaving nPENIRQ active and vREF off; avoid
 	 * the touchscreen, in case it's not connected.
 	 */
-	(void) ads7846_read12_ser(&spi->dev,
+	err = ads7846_read12_ser(&spi->dev,
 			  READ_12BIT_SER(vaux) | ADS_PD10_ALL_ON);
+
+	/* if sample is all 0's or all 1's then there is no device on spi */	
+	if ( (err == 0x000) || (err == 0xfff)) {
+		dev_info(&spi->dev, "no device detected, test read result was 0x%08X\n", err);
+		err = -ENODEV;
+		goto err_free_irq;
+	}
 
 	err = sysfs_create_group(&spi->dev.kobj, &ads784x_attr_group);
 	if (err)
@@ -1188,7 +1195,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
  err_free_irq:
 	free_irq(spi->irq, ts);
  err_free_gpio:
-	if (ts->gpio_pendown != -1)
+	if (!ts->get_pendown_state && ts->gpio_pendown != -1)
 		gpio_free(ts->gpio_pendown);
  err_cleanup_filter:
 	if (ts->filter_cleanup)
@@ -1216,7 +1223,7 @@ static int __devexit ads7846_remove(struct spi_device *spi)
 	/* suspend left the IRQ disabled */
 	enable_irq(ts->spi->irq);
 
-	if (ts->gpio_pendown != -1)
+	if (!ts->get_pendown_state && ts->gpio_pendown != -1)
 		gpio_free(ts->gpio_pendown);
 
 	if (ts->filter_cleanup)
