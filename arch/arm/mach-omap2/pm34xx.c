@@ -1228,6 +1228,10 @@ void __init omap3_pm_init_opp_table(void)
 		/* We dont want half configured system at the moment */
 		BUG_ON(IS_ERR(omap3_rate_tables[i]));
 	}
+
+	mpu_opps = omap3_mpu_rate_table;
+	dsp_opps = omap3_dsp_rate_table;
+	l3_opps = omap3_l3_rate_table;
 }
 
 late_initcall(omap3_pm_init);
