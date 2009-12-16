@@ -27,7 +27,7 @@
 #include <plat/powerdomain.h>
 #include <plat/resource.h>
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
+#include <plat/opp.h>
 #include <plat/omap34xx.h>
 
 extern int sr_voltagescale_vcbypass(u32 t_opp, u32 c_opp, u8 t_vsel, u8 c_vsel);
