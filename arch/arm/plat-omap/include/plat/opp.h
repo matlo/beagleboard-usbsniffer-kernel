@@ -15,6 +15,10 @@
 
 #include <linux/err.h>
 
+extern struct omap_opp *mpu_opps;
+extern struct omap_opp *dsp_opps;
+extern struct omap_opp *l3_opps;
+
 /**
  * struct omap_opp - OMAP OPP description structure
  * @enabled:	true/false - marking this OPP as enabled/disabled
