@@ -13,6 +13,10 @@
 #ifndef __ASM_ARM_OMAP_OPP_H
 #define __ASM_ARM_OMAP_OPP_H
 
+extern struct omap_opp *mpu_opps;
+extern struct omap_opp *dsp_opps;
+extern struct omap_opp *l3_opps;
+
 /**
  * struct omap_opp - OMAP OPP description structure
  * @enabled:	true/false - marking this OPP as enabled/disabled
