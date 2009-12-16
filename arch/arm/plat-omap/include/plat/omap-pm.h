@@ -20,10 +20,6 @@
 #include "powerdomain.h"
 #include <plat/opp.h>
 
-extern struct omap_opp *mpu_opps;
-extern struct omap_opp *dsp_opps;
-extern struct omap_opp *l3_opps;
-
 /*
  * agent_id values for use with omap_pm_set_min_bus_tput():
  *
@@ -46,11 +42,9 @@ extern struct omap_opp *l3_opps;
  * PM idle-loop code.
  */
 #ifdef CONFIG_OMAP_PM_NONE
-#define omap_pm_if_early_init(a, b, c) 0
+#define omap_pm_if_early_init() 0
 #else
-int __init omap_pm_if_early_init(struct omap_opp *mpu_opp_table,
-				 struct omap_opp *dsp_opp_table,
-				 struct omap_opp *l3_opp_table);
+int __init omap_pm_if_early_init(void);
 #endif
 
 /**
