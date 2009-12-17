@@ -37,13 +37,17 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <plat/display.h>
+#include <plat/clock.h>
 
 #include <plat/control.h>
 #include <plat/gpmc-smc91x.h>
+#include <plat/omap-pm.h>
 
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"
 #include "mmc-twl4030.h"
+#include "pm.h"
+#include "omap3-opp.h"
 
 #define SDP3430_TS_GPIO_IRQ_SDPV1	3
 #define SDP3430_TS_GPIO_IRQ_SDPV2	2
@@ -69,6 +73,24 @@ static struct cpuidle_params omap3_cpuidle_params_table[] = {
 	{1, 3000, 8500, 15000},
 	/* C7 */
 	{1, 10000, 30000, 300000},
+};
+
+/* FIXME: These are not the optimal setup values to be used on 3430sdp*/
+static struct prm_setup_vc omap3_setuptime_table = {
+	.clksetup = 0xff,
+	.voltsetup_time1 = 0xfff,
+	.voltsetup_time2 = 0xfff,
+	.voltoffset = 0xff,
+	.voltsetup2 = 0xff,
+	.vdd0_on = 0x30,
+	.vdd0_onlp = 0x20,
+	.vdd0_ret = 0x1e,
+	.vdd0_off = 0x00,
+	.vdd1_on = 0x2c,
+	.vdd1_onlp = 0x20,
+	.vdd1_ret = 0x1e,
+	.vdd1_off = 0x00,
+>>>>>>> pm-remainder
 };
 
 static int board_keymap[] = {
@@ -322,7 +344,9 @@ static void __init omap_3430sdp_init_irq(void)
 	omap_board_config = sdp3430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	omap3_pm_init_cpuidle(omap3_cpuidle_params_table);
-	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL);
+	omap3_pm_init_vc(&omap3_setuptime_table);
+	omap2_init_common_hw(hyb18m512160af6_sdrc_params, NULL, omap3_mpu_rate_table,
+			     omap3_dsp_rate_table, omap3_l3_rate_table);
 	omap_init_irq();
 	omap_gpio_init();
 }
