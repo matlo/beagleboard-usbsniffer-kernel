@@ -90,7 +90,6 @@ static struct prm_setup_vc omap3_setuptime_table = {
 	.vdd1_onlp = 0x20,
 	.vdd1_ret = 0x1e,
 	.vdd1_off = 0x00,
->>>>>>> pm-remainder
 };
 
 static int board_keymap[] = {
