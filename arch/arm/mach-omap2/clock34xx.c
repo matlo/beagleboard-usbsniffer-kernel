@@ -33,6 +33,8 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
+#include <plat/omap-pm.h>
+
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
