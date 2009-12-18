@@ -24,9 +24,6 @@ extern struct omap_opp *l3_opps;
  * @enabled:	true/false - marking this OPP as enabled/disabled
  * @rate:	Frequency in hertz
  * @opp_id:	(DEPRECATED) opp identifier
- * @vsel:	Voltage in volt processor level(this usage is
- *		DEPRECATED to use Voltage in microvolts in future)
- *		uV = ((vsel * 12.5) + 600) * 1000
  * @u_volt:     minimum microvolts DC required for this OPP to function
  *
  * This structure stores the OPP information for a given domain.
@@ -39,7 +36,6 @@ struct omap_opp {
 	unsigned long rate;
 	unsigned long u_volt;
 	u8 __deprecated opp_id;
-	u8 __deprecated vsel;
 };
 
 /**
