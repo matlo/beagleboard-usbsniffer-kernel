@@ -144,9 +144,6 @@ static void omap_opp_populate(struct omap_opp *opp,
 	opp->rate = opp_def->freq;
 	opp->enabled = opp_def->enabled;
 	opp->vsel = omap_twl_uv_to_vsel(opp_def->u_volt);
-	/* round off to higher voltage */
-	if (opp_def->u_volt > omap_twl_vsel_to_uv(opp->vsel))
-		opp->vsel++;
 }
 
 struct omap_opp *opp_add(struct omap_opp *oppl,
