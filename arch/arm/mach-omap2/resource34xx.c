@@ -337,8 +337,8 @@ static int program_opp(int res, struct omap_opp *opp, int target_level,
 #ifdef CONFIG_OMAP_SMARTREFLEX
 	unsigned long t_opp, c_opp;
 
-	t_opp = ID_VDD(res) | ID_OPP_NO(opp[target_level].opp_id);
-	c_opp = ID_VDD(res) | ID_OPP_NO(opp[current_level].opp_id);
+	t_opp = ID_VDD(res) | ID_OPP_NO(opp[target_level - 1].opp_id);
+	c_opp = ID_VDD(res) | ID_OPP_NO(opp[current_level - 1].opp_id);
 #endif
 
 	/* See if have a freq associated, if not, invalid opp */
