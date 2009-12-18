@@ -98,33 +98,65 @@ struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
 	return OPP_TERM(oppl) ? ERR_PTR(-ENOENT) : oppl;
 }
 
-struct omap_opp *opp_find_freq_approx(struct omap_opp *oppl,
-				      unsigned long *freq, u8 dir_flag)
+struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq)
 {
 	if (unlikely(!oppl || IS_ERR(oppl) || !freq || IS_ERR(freq))) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
+
 	/* skip initial terminator */
-	if (OPP_TERM(oppl)) {
+	if (OPP_TERM(oppl))
 		oppl++;
-		/* If searching init list for a high val, skip to very top */
-		if (dir_flag == OPP_SEARCH_LOW)
-			while (!OPP_TERM(oppl + 1))
-				oppl++;
-	}
+
 	while (!OPP_TERM(oppl)) {
-		if (oppl->enabled &&
-		    (((dir_flag == OPP_SEARCH_HIGH) && (oppl->rate >= *freq)) ||
-		     ((dir_flag == OPP_SEARCH_LOW) && (oppl->rate <= *freq))))
+		if (oppl->enabled && oppl->rate >= *freq)
 			break;
-		oppl += (dir_flag == OPP_SEARCH_LOW) ? -1 : 1;
+
+		oppl++;
 	}
 
 	if (OPP_TERM(oppl))
 		return ERR_PTR(-ENOENT);
 
 	*freq = oppl->rate;
+
+	return oppl;
+}
+
+struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl, unsigned long *freq)
+{
+	if (unlikely(!oppl || IS_ERR(oppl) || !freq || IS_ERR(freq))) {
+		pr_err("%s: Invalid parameters being passed\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* skip initial terminator */
+	if (OPP_TERM(oppl)) {
+		oppl++;
+		/* If searching init list for a high val, skip to very top */
+		/*
+		 * XXX What is the point of this?  If one is going to traverse
+		 * the list, might as well do what we need to do during the
+		 * traversal.
+		 */
+		while (!OPP_TERM(oppl)) /* XXX above */
+			oppl++;
+	}
+
+	while (!OPP_TERM(--oppl)) {
+		if (!oppl->enabled)
+			continue;
+
+		if (oppl->rate <= *freq)
+			break;
+	}
+
+	if (OPP_TERM(oppl))
+		return ERR_PTR(-ENOENT);
+
+	*freq = oppl->rate;
+
 	return oppl;
 }
 
