@@ -204,7 +204,7 @@ static int __deprecated freq_to_opp(u8 *opp_id, struct omap_opp *opps,
 	opp = opp_find_freq_ceil(opps, &freq);
 	if (IS_ERR(opp))
 		return -EINVAL;
-	*opp_id = opp->opp_id;
+	*opp_id = opp_get_opp_id(opp);
 	return 0;
 }
 
@@ -337,8 +337,8 @@ static int program_opp(int res, struct omap_opp *opp, int target_level,
 #ifdef CONFIG_OMAP_SMARTREFLEX
 	unsigned long t_opp, c_opp;
 
-	t_opp = ID_VDD(res) | ID_OPP_NO(opp[target_level - 1].opp_id);
-	c_opp = ID_VDD(res) | ID_OPP_NO(opp[current_level - 1].opp_id);
+	t_opp = ID_VDD(res) | ID_OPP_NO(target_level);
+	c_opp = ID_VDD(res) | ID_OPP_NO(current_level);
 #endif
 
 	/* See if have a freq associated, if not, invalid opp */
