@@ -23,7 +23,7 @@
  * This is meant to help co-exist with current SRF etc
  * TODO: REMOVE!
  */
-#define OPP_TERM(opp) (!(opp)->rate && !(opp)->vsel && !(opp)->enabled)
+#define OPP_TERM(opp) (!(opp)->rate && !(opp)->u_volt && !(opp)->enabled)
 
 unsigned long opp_get_voltage(const struct omap_opp *opp)
 {
@@ -31,7 +31,7 @@ unsigned long opp_get_voltage(const struct omap_opp *opp)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return 0;
 	}
-	return omap_twl_vsel_to_uv(opp->vsel);
+	return opp->u_volt;
 }
 
 unsigned long opp_get_freq(const struct omap_opp *opp)
@@ -143,7 +143,8 @@ static void omap_opp_populate(struct omap_opp *opp,
 {
 	opp->rate = opp_def->freq;
 	opp->enabled = opp_def->enabled;
-	opp->vsel = omap_twl_uv_to_vsel(opp_def->u_volt);
+	opp->u_volt = opp_def->u_volt;
+	opp->vsel = omap_twl_uv_to_vsel(opp_def->u_volt); /* XXX remove me */
 }
 
 struct omap_opp *opp_add(struct omap_opp *oppl,
@@ -234,6 +235,7 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 	opp->rate = 0;
 	opp->enabled = 0;
 	opp->vsel = 0;
+	opp->u_volt = 0;
 	opp++;
 	while (n) {
 		omap_opp_populate(opp, opp_defs);
@@ -247,6 +249,7 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 	opp->rate = 0;
 	opp->enabled = 0;
 	opp->vsel = 0;
+	opp->u_volt = 0;
 	return oppl;
 }
 
