@@ -66,7 +66,7 @@ unsigned long opp_get_freq(const struct omap_opp *opp);
  * This functions returns the number of opps if there are any OPPs enabled,
  * else returns corresponding error value.
  */
-int opp_get_opp_count(const struct omap_opp *oppl);
+int opp_get_opp_count(struct omap_opp *oppl);
 
 /**
  * opp_find_freq_exact() - search for an exact frequency
