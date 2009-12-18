@@ -207,7 +207,7 @@ static int __deprecated freq_to_opp(u8 *opp_id, struct omap_opp *opps,
 	struct omap_opp *opp;
 
 	BUG_ON(!opp_id || !opps);
-	opp = opp_find_freq_approx(opps, &freq, OPP_SEARCH_HIGH);
+	opp = opp_find_freq_ceil(opps, &freq);
 	if (IS_ERR(opp))
 		return -EINVAL;
 	*opp_id = opp->opp_id;
@@ -476,13 +476,11 @@ int set_opp(struct shared_resource *resp, u32 target_level)
 		req_l3_freq = (target_level * 1000)/4;
 
 		/* Do I have a best match? */
-		oppx = opp_find_freq_approx(l3_opps, &req_l3_freq,
-					OPP_SEARCH_HIGH);
+		oppx = opp_find_freq_ceil(l3_opps, &req_l3_freq);
 		if (IS_ERR(oppx)) {
 			/* Give me the best we got */
 			req_l3_freq = ULONG_MAX;
-			oppx = opp_find_freq_approx(l3_opps,
-					&req_l3_freq, OPP_SEARCH_LOW);
+			oppx = opp_find_freq_floor(l3_opps, &req_l3_freq);
 		}
 
 		/* uh uh.. no OPPs?? */
