@@ -25,6 +25,7 @@
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
 #include <plat/omap34xx.h>
+#include <plat/opp_twl_tps.h>
 
 #include "smartreflex.h"
 #include "resource34xx.h"
@@ -157,10 +158,6 @@ static int curr_vdd1_opp;
 static int curr_vdd2_opp;
 static DEFINE_MUTEX(dvfs_mutex);
 
-/* Introducing deprecated function because we got to.. */
-#define IS_OPP_TERMINATOR(opps, i) (!(opps)[(i)].enabled &&	\
-		!(opps)[(i)].rate && !(opps)[(i)].vsel)
-
 /**
  * opp_to_freq - convert OPPID to frequency (DEPRECATED)
  * @freq: return frequency back to caller
@@ -175,20 +172,17 @@ static DEFINE_MUTEX(dvfs_mutex);
 static int __deprecated opp_to_freq(unsigned long *freq,
 		const struct omap_opp *opps, u8 opp_id)
 {
-	int i = 1;
+	struct omap_opp *opp;
 
 	BUG_ON(!freq || !opps);
 
-	/* The first entry is a dummy one, loop till we hit terminator */
-	while (!IS_OPP_TERMINATOR(opps, i)) {
-		if (opps[i].enabled && (opps[i].opp_id == opp_id)) {
-			*freq = opps[i].rate;
-			return 0;
-		}
-		i++;
-	}
+	opp = opp_find_by_opp_id(opps, opp_id);
+	if (!opp)
+		return -EINVAL;
 
-	return -EINVAL;
+	*freq = opp_get_freq(opp);
+
+	return 0;
 }
 
 /**
@@ -365,18 +359,22 @@ static int program_opp(int res, struct omap_opp *opp, int target_level,
 		else {
 			u8 vc, vt;
 			struct omap_opp *oppx;
+			unsigned long uvdc;
+
 			/*
 			 * transitioning from good to good OPP
 			 * none of the following should fail..
 			 */
 			oppx = opp_find_freq_exact(opp, freq, true);
 			BUG_ON(IS_ERR(oppx));
-			vt = oppx->vsel;
+			uvdc = opp_get_voltage(oppx);
+			vt = omap_twl_uv_to_vsel(uvdc);
 
 			BUG_ON(opp_to_freq(&freq, opp, current_level));
 			oppx = opp_find_freq_exact(opp, freq, true);
 			BUG_ON(IS_ERR(oppx));
-			vc = oppx->vsel;
+			uvdc = opp_get_voltage(oppx);
+			vc = omap_twl_uv_to_vsel(uvdc);
 
 			/* ok to scale.. */
 			sr_voltagescale_vcbypass(t_opp, c_opp, vt, vc);
