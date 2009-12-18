@@ -43,6 +43,31 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
 	return opp->rate;
 }
 
+/**
+ * opp_find_by_opp_id - look up OPP by OPP ID (deprecated)
+ * @opps: pointer to an array of struct omap_opp
+ *
+ * Returns the struct omap_opp pointer corresponding to the given OPP
+ * ID @opp_id, or returns NULL on error.
+ */
+struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
+						  u8 opp_id)
+{
+	int i = 1;
+
+	if (!opps || !opp_id)
+		return NULL;
+
+	/* The first entry is a dummy one, loop till we hit terminator */
+	while (!OPP_TERM(&opps[i])) {
+		if (opps[i].enabled && (opps[i].opp_id == opp_id))
+			return &opps[i];
+		i++;
+	}
+
+	return NULL;
+}
+
 int opp_get_opp_count(struct omap_opp *oppl)
 {
 	u8 n = 0;

@@ -247,4 +247,7 @@ int opp_enable(struct omap_opp *opp);
  */
 int opp_disable(struct omap_opp *opp);
 
+struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
+						  u8 opp_id);
+
 #endif		/* __ASM_ARM_OMAP_OPP_H */
