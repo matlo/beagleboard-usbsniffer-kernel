@@ -178,8 +178,11 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 		opp++;
 	}
 
-	/* lets now reallocate memory */
-	oppr = kmalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
+	/*
+	 * Allocate enough entries to copy the original list, plus the new
+	 * OPP, plus the concluding terminator
+	 */
+	oppr = kzalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
 	if (!oppr) {
 		pr_err("%s: No memory for new opp array\n", __func__);
 		return ERR_PTR(-ENOMEM);
@@ -209,8 +212,8 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 		oppt->opp_id = i;
 		oppt++;
 	}
-	/* Put the terminator back on */
-	memcpy(oppt, opp, sizeof(struct omap_opp));
+
+	/* Terminator implicitly added by kzalloc() */
 
 	/* Free the old list */
 	kfree(oppl);
@@ -234,11 +237,16 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 		t++;
 	}
 
-	oppl = kmalloc(sizeof(struct omap_opp) * (n + 1), GFP_KERNEL);
+	/*
+	 * Allocate enough entries to copy the original list, plus the
+	 * concluding terminator
+	 */
+	oppl = kzalloc(sizeof(struct omap_opp) * (n + 1), GFP_KERNEL);
 	if (!oppl) {
 		pr_err("%s: No memory for opp array\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
+
 	opp = oppl;
 	while (n) {
 		omap_opp_populate(opp, opp_defs);
@@ -248,10 +256,9 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 		opp_defs++;
 		i++;
 	}
-	/* Setup terminator - this is for our search algos */
-	opp->rate = 0;
-	opp->enabled = 0;
-	opp->u_volt = 0;
+
+	/* Terminator implicitly added by kzalloc() */
+
 	return oppl;
 }
 
