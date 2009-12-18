@@ -157,8 +157,7 @@ void omap3_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 		return;
 	}
 
-	while (!IS_ERR(opp = opp_find_freq_approx(opp, &freq,
-					OPP_SEARCH_LOW))) {
+	while (!IS_ERR(opp = opp_find_freq_floor(opp, &freq))) {
 		freq_table[i].index = i;
 		freq_table[i].frequency = freq / 1000;
 		i++;
