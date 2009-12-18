@@ -133,7 +133,11 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cur = policy->min = policy->max = omap_getspeed(0);
 
-	clk_init_cpufreq_table(&freq_table);
+	if (!cpu_is_omap34xx())
+		clk_init_cpufreq_table(&freq_table);
+	else
+		opp_init_cpufreq_table(mpu_opps, &freq_table);
+
 	if (freq_table) {
 		result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 		if (!result)
