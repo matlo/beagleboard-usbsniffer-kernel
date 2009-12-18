@@ -113,8 +113,7 @@ static int omap_target(struct cpufreq_policy *policy,
 #elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 	if (mpu_opps) {
 		unsigned long freq = target_freq * 1000;
-		if (!IS_ERR(opp_find_freq_approx(mpu_opps, &freq,
-					OPP_SEARCH_HIGH)))
+		if (!IS_ERR(opp_find_freq_ceil(mpu_opps, &freq)))
 			omap_pm_cpu_set_freq(freq);
 	}
 #endif

@@ -85,35 +85,23 @@ int opp_get_opp_count(struct omap_opp *oppl);
 struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
 				     unsigned long freq, bool enabled);
 
-#define OPP_SEARCH_HIGH		(0 << 1)
-#define OPP_SEARCH_LOW		(1 << 1)
+/* XXX This documentation needs fixing */
+
 /**
- * opp_find_freq_approx() - Search for an rounded freq
+ * opp_find_freq_floor() - Search for an rounded freq
  * @oppl:	Starting list
  * @freq:	Start frequency
- * @dir_flag:	Search direction
- *		OPP_SEARCH_HIGH - search for next highest freq
- *		OPP_SEARCH_LOW - search for next lowest freq
  *
- * Search for the higher/lower *enabled* OPP from a starting freq
+ * Search for the lower *enabled* OPP from a starting freq
  * from a start opp list.
  *
- * Returns *opp and *freq is populated with the next match,
- * else returns NULL
- * opp if found, else returns ERR_PTR in case of error.
+ * Returns *opp and *freq is populated with the next match, else
+ * returns NULL opp if found, else returns ERR_PTR in case of error.
  *
  * Example usages:
- *	* find match/next highest available frequency
- *	freq = 350000;
- *	opp = opp_find_freq_approx(oppl, &freq, OPP_SEARCH_HIGH)))
- *	if (IS_ERR(opp))
- *		pr_err ("unable to find a higher frequency\n");
- *	else
- *		pr_info("match freq = %ld\n", freq);
- *
  *	* find match/next lowest available frequency
  *	freq = 350000;
- *	opp = opp_find_freq_approx(oppl, &freq, OPP_SEARCH_LOW)))
+ *	opp = opp_find_freq_floor(oppl, &freq)))
  *	if (IS_ERR(opp))
  *		pr_err ("unable to find a lower frequency\n");
  *	else
@@ -122,26 +110,49 @@ struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
  *	* print all supported frequencies in descending order *
  *	opp = oppl;
  *	freq = ULONG_MAX;
- *	while (!IS_ERR(opp = opp_find_freq_approx(opp, &freq,
- *		OPP_SEARCH_LOW))) {
+ *	while (!IS_ERR(opp = opp_find_freq_floor(opp, &freq)) {
  *		pr_info("freq = %ld\n", freq);
  *		freq--; * for next lower match *
  *	}
  *
+ * NOTE: if we set freq as ULONG_MAX and search low, we get the
+ * highest enabled frequency
+ */
+struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl,
+				     unsigned long *freq);
+
+/* XXX This documentation needs fixing */
+
+/**
+ * opp_find_freq_ceil() - Search for an rounded freq
+ * @oppl:	Starting list
+ * @freq:	Start frequency
+ *
+ * Search for the higher *enabled* OPP from a starting freq
+ * from a start opp list.
+ *
+ * Returns *opp and *freq is populated with the next match, else
+ * returns NULL opp if found, else returns ERR_PTR in case of error.
+ *
+ * Example usages:
+ *	* find match/next highest available frequency
+ *	freq = 350000;
+ *	opp = opp_find_freq_ceil(oppl, &freq))
+ *	if (IS_ERR(opp))
+ *		pr_err ("unable to find a higher frequency\n");
+ *	else
+ *		pr_info("match freq = %ld\n", freq);
+ *
  *	* print all supported frequencies in ascending order *
  *	opp = oppl;
  *	freq = 0;
- *	while (!IS_ERR(opp = opp_find_freq_approx(opp, &freq,
- *			OPP_SEARCH_HIGH))) {
+ *	while (!IS_ERR(opp = opp_find_freq_ceil(opp, &freq)) {
  *		pr_info("freq = %ld\n", freq);
  *		freq++; * for next higher match *
  *	}
- *
- * NOTE: if we set freq as ULONG_MAX and search low, we get the highest enabled
- * frequency
  */
-struct omap_opp *opp_find_freq_approx(struct omap_opp *oppl,
-				      unsigned long *freq, u8 dir_flag);
+struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq);
+
 
 /**
  * struct omap_opp_def - OMAP OPP Definition
