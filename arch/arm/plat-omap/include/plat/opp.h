@@ -246,4 +246,8 @@ int opp_disable(struct omap_opp *opp);
 struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
 						  u8 opp_id);
 
+void opp_init_cpufreq_table(struct omap_opp *opps,
+			    struct cpufreq_frequency_table **table);
+
+
 #endif		/* __ASM_ARM_OMAP_OPP_H */
