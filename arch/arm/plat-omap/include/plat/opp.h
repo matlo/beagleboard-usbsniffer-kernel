@@ -25,6 +25,7 @@ extern struct omap_opp *l3_opps;
  * @vsel:	Voltage in volt processor level(this usage is
  *		DEPRECATED to use Voltage in microvolts in future)
  *		uV = ((vsel * 12.5) + 600) * 1000
+ * @u_volt:     minimum microvolts DC required for this OPP to function
  *
  * This structure stores the OPP information for a given domain.
  * Due to legacy reasons, this structure is currently exposed and
@@ -34,8 +35,9 @@ extern struct omap_opp *l3_opps;
 struct omap_opp {
 	bool enabled;
 	unsigned long rate;
+	unsigned long u_volt;
 	u8 __deprecated opp_id;
-	u16 __deprecated vsel;
+	u8 __deprecated vsel;
 };
 
 /**
