@@ -2,7 +2,9 @@
  * opp_twl_tps.c - TWL/TPS-specific functions for the OPP code
  *
  * Copyright (C) 2009 Texas Instruments Incorporated.
- *	Nishanth Menon
+ * Nishanth Menon
+ * Copyright (C) 2009 Nokia Corporation
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,5 +36,14 @@ unsigned long omap_twl_vsel_to_uv(const u8 vsel)
  */
 u8 omap_twl_uv_to_vsel(unsigned long uv)
 {
-	return ((uv / 100) - 6000) / 125;
+	u8 vsel;
+
+	vsel = ((uv / 100) - 6000) / 125;
+
+	/* round off to higher voltage */
+	/* XXX Surely not the best way to handle this. */
+	if (uv > omap_twl_vsel_to_uv(vsel))
+		vsel++;
+
+	return vsel;
 }
