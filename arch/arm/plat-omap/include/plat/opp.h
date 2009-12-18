@@ -17,24 +17,7 @@ extern struct omap_opp *mpu_opps;
 extern struct omap_opp *dsp_opps;
 extern struct omap_opp *l3_opps;
 
-/**
- * struct omap_opp - OMAP OPP description structure
- * @enabled:	true/false - marking this OPP as enabled/disabled
- * @rate:	Frequency in hertz
- * @opp_id:	(DEPRECATED) opp identifier
- * @u_volt:     minimum microvolts DC required for this OPP to function
- *
- * This structure stores the OPP information for a given domain.
- * Due to legacy reasons, this structure is currently exposed and
- * will soon be removed elsewhere and will only be used as a handle
- * from the OPP internal referencing mechanism
- */
-struct omap_opp {
-	bool enabled;
-	unsigned long rate;
-	unsigned long u_volt;
-	u8 __deprecated opp_id;
-};
+struct omap_opp;
 
 /**
  * opp_get_voltage() - Gets the voltage corresponding to an opp
