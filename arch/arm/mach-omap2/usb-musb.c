@@ -81,7 +81,14 @@ static void __init usb_musb_pm_init(void)
 
 void usb_musb_disable_autoidle(void)
 {
-	__raw_writel(0, otg_base + OTG_SYSCONFIG);
+	if (otg_clk) {
+		unsigned long reg;
+
+		clk_enable(otg_clk);
+		reg = __raw_readl(otg_base + OTG_SYSCONFIG);
+		__raw_writel(reg & ~1, otg_base + OTG_SYSCONFIG);
+		clk_disable(otg_clk);
+	}
 }
 
 #ifdef CONFIG_USB_MUSB_SOC
