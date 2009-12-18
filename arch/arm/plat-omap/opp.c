@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/cpufreq.h>
 
 #include <plat/opp_twl_tps.h>
 #include <plat/opp.h>
@@ -280,4 +281,48 @@ int opp_disable(struct omap_opp *opp)
 	}
 	opp->enabled = false;
 	return 0;
+}
+
+/* XXX document */
+void opp_init_cpufreq_table(struct omap_opp *opps,
+			    struct cpufreq_frequency_table **table)
+{
+	int i = 0, j;
+	int opp_num;
+	struct cpufreq_frequency_table *freq_table;
+
+	if (!opps) {
+		pr_warning("%s: failed to initialize frequency"
+				"table\n", __func__);
+		return;
+	}
+
+	opp_num = opp_get_opp_count(opps);
+	if (opp_num < 0) {
+		pr_err("%s: no opp table?\n", __func__);
+		return;
+	}
+
+	freq_table = kmalloc(sizeof(struct cpufreq_frequency_table) *
+			     (opp_num + 1), GFP_ATOMIC);
+	if (!freq_table) {
+		pr_warning("%s: failed to allocate frequency"
+				"table\n", __func__);
+		return;
+	}
+
+	for (j = opp_num; j >= 0; j--) {
+		struct omap_opp *opp = &opps[j];
+
+		if (opp->enabled) {
+			freq_table[i].index = i;
+			freq_table[i].frequency = opp->rate / 1000;
+			i++;
+		}
+	}
+
+	freq_table[i].index = i;
+	freq_table[i].frequency = CPUFREQ_TABLE_END;
+
+	*table = &freq_table[0];
 }
