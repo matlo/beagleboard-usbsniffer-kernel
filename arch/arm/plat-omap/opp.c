@@ -69,6 +69,11 @@ struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
 	return NULL;
 }
 
+u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
+{
+	return opp->opp_id;
+}
+
 int opp_get_opp_count(struct omap_opp *oppl)
 {
 	u8 n = 0;
