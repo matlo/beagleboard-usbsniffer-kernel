@@ -169,7 +169,6 @@ static void omap_opp_populate(struct omap_opp *opp,
 	opp->rate = opp_def->freq;
 	opp->enabled = opp_def->enabled;
 	opp->u_volt = opp_def->u_volt;
-	opp->vsel = omap_twl_uv_to_vsel(opp_def->u_volt); /* XXX remove me */
 }
 
 struct omap_opp *opp_add(struct omap_opp *oppl,
@@ -259,7 +258,6 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 	/* Setup start terminator - SRF depends on this for indexing :( */
 	opp->rate = 0;
 	opp->enabled = 0;
-	opp->vsel = 0;
 	opp->u_volt = 0;
 	opp++;
 	while (n) {
@@ -273,7 +271,6 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 	/* Setup terminator - this is for our search algos */
 	opp->rate = 0;
 	opp->enabled = 0;
-	opp->vsel = 0;
 	opp->u_volt = 0;
 	return oppl;
 }
