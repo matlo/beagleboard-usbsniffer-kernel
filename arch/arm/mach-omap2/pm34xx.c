@@ -446,7 +446,8 @@ void omap_sram_idle(void)
 			 * Errata 1.164 fix : OTG autoidle can prevent
 			 * sleep
 			 */
-			usb_musb_disable_autoidle();
+			if (cpu_is_omap3430())
+				usb_musb_disable_autoidle();
 		}
 		omap_uart_resume_idle(0);
 		omap_uart_resume_idle(1);
