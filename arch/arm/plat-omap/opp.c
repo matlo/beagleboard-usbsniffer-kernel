@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 
+#include <plat/opp_twl_tps.h>
 #include <plat/opp.h>
 
 /*
@@ -24,33 +25,13 @@
  */
 #define OPP_TERM(opp) (!(opp)->rate && !(opp)->vsel && !(opp)->enabled)
 
-/*
- * DEPRECATED: Meant to convert vsel value to uVolt
- * This is meant to help co-exist with current SRF etc
- * TODO: REMOVE!
- */
-static inline unsigned long vsel_to_uv(const u8 vsel)
-{
-	return (((vsel * 125) + 6000)) * 100;
-}
-
-/*
- * DEPRECATED: Meant to convert uVolt to vsel value
- * This is meant to help co-exist with current SRF etc
- * TODO: REMOVE!
- */
-static inline unsigned char uv_to_vsel(unsigned long uV)
-{
-	return ((uV / 100) - 6000) / 125;
-}
-
 unsigned long opp_get_voltage(const struct omap_opp *opp)
 {
 	if (unlikely(!opp || IS_ERR(opp)) || !opp->enabled) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return 0;
 	}
-	return vsel_to_uv(opp->vsel);
+	return omap_twl_vsel_to_uv(opp->vsel);
 }
 
 unsigned long opp_get_freq(const struct omap_opp *opp)
@@ -162,9 +143,9 @@ static void omap_opp_populate(struct omap_opp *opp,
 {
 	opp->rate = opp_def->freq;
 	opp->enabled = opp_def->enabled;
-	opp->vsel = uv_to_vsel(opp_def->u_volt);
+	opp->vsel = omap_twl_uv_to_vsel(opp_def->u_volt);
 	/* round off to higher voltage */
-	if (opp_def->u_volt > vsel_to_uv(opp->vsel))
+	if (opp_def->u_volt > omap_twl_vsel_to_uv(opp->vsel))
 		opp->vsel++;
 }
 
