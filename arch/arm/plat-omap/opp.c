@@ -53,15 +53,15 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
 struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
 						  u8 opp_id)
 {
-	int i = 1;
+	int i = 0;
 
 	if (!opps || !opp_id)
 		return NULL;
 
-	/* The first entry is a dummy one, loop till we hit terminator */
 	while (!OPP_TERM(&opps[i])) {
 		if (opps[i].enabled && (opps[i].opp_id == opp_id))
 			return &opps[i];
+
 		i++;
 	}
 
@@ -76,7 +76,6 @@ int opp_get_opp_count(struct omap_opp *oppl)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return -EINVAL;
 	}
-	oppl++;			/* skip initial terminator */
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled)
 			n++;
@@ -92,9 +91,7 @@ struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-	/* skip initial terminator */
-	if (OPP_TERM(oppl))
-		oppl++;
+
 	while (!OPP_TERM(oppl)) {
 		if ((oppl->rate == freq) && (oppl->enabled == enabled))
 			break;
@@ -110,10 +107,6 @@ struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-
-	/* skip initial terminator */
-	if (OPP_TERM(oppl))
-		oppl++;
 
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled && oppl->rate >= *freq)
@@ -138,10 +131,6 @@ struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl, unsigned long *freq)
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-
-	/* skip initial terminator */
-	if (OPP_TERM(oppl))
-		oppl++;
 
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled) {
@@ -181,20 +170,16 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 		pr_err("%s: Invalid params being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
-	/* need a start terminator.. */
-	if (unlikely(!OPP_TERM(oppl))) {
-		pr_err("%s: Expected a start terminator!!\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
+
 	n = 0;
 	opp = oppl;
-	opp++;
 	while (!OPP_TERM(opp)) {
 		n++;
 		opp++;
 	}
+
 	/* lets now reallocate memory */
-	oppr = kmalloc(sizeof(struct omap_opp) * (n + 3), GFP_KERNEL);
+	oppr = kmalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
 	if (!oppr) {
 		pr_err("%s: No memory for new opp array\n", __func__);
 		return ERR_PTR(-ENOMEM);
@@ -204,7 +189,7 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 	opp = oppl;
 	oppt = oppr;
 	ins = 0;
-	i = 0;
+	i = 1;
 	do {
 		if (ins || opp->rate < opp_def->freq) {
 			memcpy(oppt, opp, sizeof(struct omap_opp));
@@ -249,17 +234,12 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 		t++;
 	}
 
-	oppl = kmalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
+	oppl = kmalloc(sizeof(struct omap_opp) * (n + 1), GFP_KERNEL);
 	if (!oppl) {
 		pr_err("%s: No memory for opp array\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 	opp = oppl;
-	/* Setup start terminator - SRF depends on this for indexing :( */
-	opp->rate = 0;
-	opp->enabled = 0;
-	opp->u_volt = 0;
-	opp++;
 	while (n) {
 		omap_opp_populate(opp, opp_defs);
 		opp->opp_id = i;
