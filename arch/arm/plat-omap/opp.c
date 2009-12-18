@@ -19,6 +19,25 @@
 #include <plat/opp_twl_tps.h>
 #include <plat/opp.h>
 
+/**
+ * struct omap_opp - OMAP OPP description structure
+ * @enabled:	true/false - marking this OPP as enabled/disabled
+ * @rate:	Frequency in hertz
+ * @opp_id:	(DEPRECATED) opp identifier
+ * @u_volt:     minimum microvolts DC required for this OPP to function
+ *
+ * This structure stores the OPP information for a given domain.
+ * Due to legacy reasons, this structure is currently exposed and
+ * will soon be removed elsewhere and will only be used as a handle
+ * from the OPP internal referencing mechanism
+ */
+struct omap_opp {
+	bool enabled;
+	unsigned long rate;
+	unsigned long u_volt;
+	u8 opp_id;
+};
+
 /*
  * DEPRECATED: Meant to detect end of opp array
  * This is meant to help co-exist with current SRF etc
