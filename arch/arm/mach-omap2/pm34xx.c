@@ -156,11 +156,6 @@ static struct omap_opp_def __initdata omap36xx_dsp_rate_table[] = {
 	OMAP_OPP_DEF(0, 0, 0)
 };
 
-/* OMAP3 Rate Table */
-struct omap_opp *omap3_mpu_rate_table;
-struct omap_opp *omap3_dsp_rate_table;
-struct omap_opp *omap3_l3_rate_table;
-
 static inline void omap3_per_save_context(void)
 {
 	omap_gpio_save_context();
@@ -1216,9 +1211,9 @@ void __init omap3_pm_init_opp_table(void)
 		omap36xx_dsp_rate_table
 	};
 	struct omap_opp **omap3_rate_tables[] = {
-		&omap3_mpu_rate_table,
-		&omap3_l3_rate_table,
-		&omap3_dsp_rate_table
+		&mpu_opps,
+		&l3_opps,
+		&dsp_opps
 	};
 
 	omap3_opp_def_list = cpu_is_omap3630() ? omap36xx_opp_def_list :
@@ -1228,10 +1223,6 @@ void __init omap3_pm_init_opp_table(void)
 		/* We dont want half configured system at the moment */
 		BUG_ON(IS_ERR(omap3_rate_tables[i]));
 	}
-
-	mpu_opps = omap3_mpu_rate_table;
-	dsp_opps = omap3_dsp_rate_table;
-	l3_opps = omap3_l3_rate_table;
 }
 
 late_initcall(omap3_pm_init);
