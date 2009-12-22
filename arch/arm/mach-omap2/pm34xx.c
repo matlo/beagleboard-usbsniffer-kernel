@@ -739,6 +739,11 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, MPU_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, OMAP3430_DSS_MOD, PM_WKDEP);
+
+	/* Enable PM_WKEN to support DSS LPR */
+	prm_write_mod_reg(OMAP3430_PM_WKEN_DSS_EN_DSS,
+				OMAP3430_DSS_MOD, PM_WKEN);
+
 	prm_write_mod_reg(0, OMAP3430_NEON_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, OMAP3430_CAM_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, OMAP3430_PER_MOD, PM_WKDEP);
