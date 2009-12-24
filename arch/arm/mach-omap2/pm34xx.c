@@ -940,7 +940,11 @@ static void __init prcm_setup_regs(void)
 			CM_AUTOIDLE);
 	}
 
-	omap_ctrl_writel(OMAP3430_AUTOIDLE, OMAP2_CONTROL_SYSCONFIG);
+	/*
+	 * This causes MUSB failure on AM3517 so disable it.
+	 */
+	if (!cpu_is_omap3517)
+		omap_ctrl_writel(OMAP3430_AUTOIDLE, OMAP2_CONTROL_SYSCONFIG);
 
 	/*
 	 * Set all plls to autoidle. This is needed until autoidle is
