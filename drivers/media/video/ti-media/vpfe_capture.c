@@ -73,7 +73,7 @@
 #include <linux/version.h>
 #include <media/v4l2-common.h>
 #include <linux/io.h>
-#include <media/davinci/vpfe_capture.h>
+#include <media/ti-media/vpfe_capture.h>
 #include "ccdc_hw_device.h"
 
 static int debug;

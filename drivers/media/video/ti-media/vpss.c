@@ -26,7 +26,7 @@
 #include <linux/compiler.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
-#include <media/davinci/vpss.h>
+#include <media/ti-media/vpss.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VPSS Driver");

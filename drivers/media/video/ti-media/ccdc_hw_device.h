@@ -23,8 +23,8 @@
 #ifdef __KERNEL__
 #include <linux/videodev2.h>
 #include <linux/device.h>
-#include <media/davinci/vpfe_types.h>
-#include <media/davinci/ccdc_types.h>
+#include <media/ti-media/vpfe_types.h>
+#include <media/ti-media/ccdc_types.h>
 
 /*
  * ccdc hw operations

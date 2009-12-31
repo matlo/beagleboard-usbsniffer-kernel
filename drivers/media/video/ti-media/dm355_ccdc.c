@@ -39,8 +39,8 @@
 #include <linux/videodev2.h>
 #include <linux/clk.h>
 
-#include <media/davinci/dm355_ccdc.h>
-#include <media/davinci/vpss.h>
+#include <media/ti-media/dm355_ccdc.h>
+#include <media/ti-media/vpss.h>
 
 #include "dm355_ccdc_regs.h"
 #include "ccdc_hw_device.h"

@@ -17,8 +17,8 @@
  */
 #ifndef _DM644X_CCDC_H
 #define _DM644X_CCDC_H
-#include <media/davinci/ccdc_types.h>
-#include <media/davinci/vpfe_types.h>
+#include <media/ti-media/ccdc_types.h>
+#include <media/ti-media/vpfe_types.h>
 
 /* enum for No of pixel per line to be avg. in Black Clamping*/
 enum ccdc_sample_length {

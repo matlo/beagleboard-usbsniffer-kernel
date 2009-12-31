@@ -29,7 +29,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf-dma-contig.h>
-#include <media/davinci/vpfe_types.h>
+#include <media/ti-media/vpfe_types.h>
 
 #define VPFE_CAPTURE_NUM_DECODERS        5
 
