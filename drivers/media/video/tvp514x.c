@@ -212,6 +212,13 @@ static const struct v4l2_fmtdesc tvp514x_fmt_list[] = {
 	 .description = "8-bit UYVY 4:2:2 Format",
 	 .pixelformat = V4L2_PIX_FMT_UYVY,
 	},
+	{
+	 .index = 1,
+	 .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+	 .flags = 0,
+	 .description = "8-bit YUYV 4:2:2 Format",
+	 .pixelformat = V4L2_PIX_FMT_YUYV,
+	},
 };
 
 /**
