@@ -13,7 +13,7 @@
 
 #include <mach/hardware.h>
 #include <mach/asp.h>
-#include <media/davinci/vpfe_capture.h>
+#include <media/ti-media/vpfe_capture.h>
 
 #define ASP1_TX_EVT_EN	1
 #define ASP1_RX_EVT_EN	2
