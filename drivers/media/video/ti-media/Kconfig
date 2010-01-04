@@ -86,3 +86,15 @@ config VIDEO_DM355_CCDC
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called vpfe.
+
+config VIDEO_OMAP2_VOUT
+	tristate "OMAP2/OMAP3 V4L2-DSS driver"
+	select VIDEOBUF_GEN
+	select VIDEOBUF_DMA_SG
+	select OMAP2_DSS
+	select OMAP2_VRAM
+	select OMAP2_VRFB
+	depends on TI_MEDIA && (ARCH_OMAP24XX || ARCH_OMAP34XX)
+	default y
+	---help---
+	  V4L2 DSS support for OMAP2/3 based boards.
