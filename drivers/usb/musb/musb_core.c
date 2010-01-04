@@ -112,7 +112,6 @@
 #include "davinci.h"
 #endif
 
-#define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
 
 unsigned musb_debug;
@@ -289,6 +288,12 @@ const char *otg_state_string(struct musb *musb)
 #ifdef	CONFIG_USB_MUSB_OTG
 
 /*
+ * See also USB_OTG_1-3.pdf 6.6.5 Timers
+ * REVISIT: Are the other timers done in the hardware?
+ */
+#define TB_ASE0_BRST		100	/* Min 3.125 ms */
+
+/*
  * Handles OTG hnp timeouts, such as b_ase0_brst
  */
 void musb_otg_timer_func(unsigned long data)
@@ -315,8 +320,10 @@ void musb_otg_timer_func(unsigned long data)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
+static DEFINE_TIMER(musb_otg_timer, musb_otg_timer_func, 0, 0);
+
 /*
- * Stops the HNP transition. Caller must take care of locking.
+ * Stops the B-device HNP state. Caller must take care of locking.
  */
 void musb_hnp_stop(struct musb *musb)
 {
@@ -654,12 +661,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb_g_reset(musb);
 				/* FALLTHROUGH */
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
-				/* never use invalid T(a_wait_bcon) */
-				DBG(1, "HNP: in %s, %d msec timeout\n",
-						otg_state_string(musb),
-						TA_WAIT_BCON(musb));
-				mod_timer(&musb->otg_timer, jiffies
-					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
+				DBG(1, "HNP: Setting timer as %s\n",
+						otg_state_string(musb));
+				musb_otg_timer.data = (unsigned long)musb;
+				mod_timer(&musb_otg_timer, jiffies
+					+ msecs_to_jiffies(100));
 				break;
 			case OTG_STATE_A_PERIPHERAL:
 				musb_hnp_stop(musb);
@@ -816,9 +822,9 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 #ifdef	CONFIG_USB_MUSB_OTG
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 				DBG(1, "HNP: Setting timer for b_ase0_brst\n");
-				mod_timer(&musb->otg_timer, jiffies
-					+ msecs_to_jiffies(
-							OTG_TIME_B_ASE0_BRST));
+				musb_otg_timer.data = (unsigned long)musb;
+				mod_timer(&musb_otg_timer, jiffies
+					+ msecs_to_jiffies(TB_ASE0_BRST));
 #endif
 			}
 			break;
@@ -1671,8 +1677,7 @@ musb_vbus_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	spin_lock_irqsave(&musb->lock, flags);
-	/* force T(a_wait_bcon) to be zero/unlimited *OR* valid */
-	musb->a_wait_bcon = val ? max_t(int, val, OTG_TIME_A_WAIT_BCON) : 0 ;
+	musb->a_wait_bcon = val;
 	if (musb->xceiv->state == OTG_STATE_A_WAIT_BCON)
 		musb->is_active = 0;
 	musb_platform_try_idle(musb, jiffies + msecs_to_jiffies(val));
@@ -1691,13 +1696,10 @@ musb_vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	spin_lock_irqsave(&musb->lock, flags);
 	val = musb->a_wait_bcon;
-	/* FIXME get_vbus_status() is normally #defined as false...
-	 * and is effectively TUSB-specific.
-	 */
 	vbus = musb_platform_get_vbus_status(musb);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
+	return sprintf(buf, "Vbus %s, timeout %lu\n",
 			vbus ? "on" : "off", val);
 }
 static DEVICE_ATTR(vbus, 0644, musb_vbus_show, musb_vbus_store);
@@ -1770,7 +1772,6 @@ allocate_instance(struct device *dev,
 	hcd->uses_new_polling = 1;
 
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
-	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
 #else
 	musb = kzalloc(sizeof *musb, GFP_KERNEL);
 	if (!musb)
@@ -1964,10 +1965,6 @@ bad_config:
 			: MUSB_CONTROLLER_HDRC, musb);
 	if (status < 0)
 		goto fail2;
-
-#ifdef CONFIG_USB_MUSB_OTG
-	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
-#endif
 
 	/* Init IRQ workqueue before request_irq */
 	INIT_WORK(&musb->irq_work, musb_irq_work);
