@@ -587,23 +587,28 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		if (devctl & MUSB_DEVCTL_LSDEV)
 			musb->port1_status |= USB_PORT_STAT_LOW_SPEED;
 
+		if (hcd->status_urb)
+			usb_hcd_poll_rh_status(hcd);
+		else
+			usb_hcd_resume_root_hub(hcd);
+
+		MUSB_HST_MODE(musb);
+
 		/* indicate new connection to OTG machine */
 		switch (musb->xceiv->state) {
 		case OTG_STATE_B_PERIPHERAL:
 			if (int_usb & MUSB_INTR_SUSPEND) {
 				DBG(1, "HNP: SUSPEND+CONNECT, now b_host\n");
+				musb->xceiv->state = OTG_STATE_B_HOST;
+				hcd->self.is_b_host = 1;
 				int_usb &= ~MUSB_INTR_SUSPEND;
-				goto b_host;
 			} else
 				DBG(1, "CONNECT as b_peripheral???\n");
 			break;
 		case OTG_STATE_B_WAIT_ACON:
-			DBG(1, "HNP: CONNECT, now b_host\n");
-b_host:
+			DBG(1, "HNP: Waiting to switch to b_host state\n");
 			musb->xceiv->state = OTG_STATE_B_HOST;
 			hcd->self.is_b_host = 1;
-			musb->ignore_disconnect = 0;
-			del_timer(&musb->otg_timer);
 			break;
 		default:
 			if ((devctl & MUSB_DEVCTL_VBUS)
@@ -613,14 +618,6 @@ b_host:
 			}
 			break;
 		}
-
-		/* poke the root hub */
-		MUSB_HST_MODE(musb);
-		if (hcd->status_urb)
-			usb_hcd_poll_rh_status(hcd);
-		else
-			usb_hcd_resume_root_hub(hcd);
-
 		DBG(1, "CONNECT (%s) devctl %02x\n",
 				otg_state_string(musb), devctl);
 	}
@@ -665,9 +662,7 @@ b_host:
 					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
 				break;
 			case OTG_STATE_A_PERIPHERAL:
-				musb->ignore_disconnect = 0;
-				del_timer(&musb->otg_timer);
-				musb_g_reset(musb);
+				musb_hnp_stop(musb);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				DBG(1, "HNP: RESET (%s), to b_peripheral\n",
