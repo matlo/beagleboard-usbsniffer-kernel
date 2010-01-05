@@ -338,8 +338,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		if (brq.cmd.error || brq.data.error || brq.stop.error) {
 			if (brq.data.blocks > 1 && rq_data_dir(req) == READ) {
 				/* Redo read one sector at a time */
-				printk(KERN_WARNING "%s: retrying using single "
-				       "block read\n", req->rq_disk->disk_name);
+				/* printk(KERN_WARNING "%s: retrying using single "
+				       "block read\n", req->rq_disk->disk_name); */
 				disable_multi = 1;
 				continue;
 			}
