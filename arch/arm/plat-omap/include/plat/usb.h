@@ -161,5 +161,83 @@ void omap_usb_init(struct omap_usb_config *pdata);
 #	define	USBT2TLL5PI		(1 << 17)
 #	define	USB0PUENACTLOI		(1 << 16)
 #	define	USBSTANDBYCTRL		(1 << 15)
+/* AM3517 */
+/* USB 2.0 OTG module registers */
+#define USB_REVISION_REG	0x00
+#define USB_CTRL_REG		0x04
+#define USB_STAT_REG		0x08
+#define USB_EMULATION_REG	0x0c
+/* 0x10 Reserved */
+#define USB_AUTOREQ_REG		0x14
+#define USB_SRP_FIX_TIME_REG	0x18
+#define USB_TEARDOWN_REG	0x1c
+#define EP_INTR_SRC_REG		0x20
+#define EP_INTR_SRC_SET_REG	0x24
+#define EP_INTR_SRC_CLEAR_REG	0x28
+#define EP_INTR_MASK_REG	0x2c
+#define EP_INTR_MASK_SET_REG	0x30
+#define EP_INTR_MASK_CLEAR_REG	0x34
+#define EP_INTR_SRC_MASKED_REG	0x38
+#define CORE_INTR_SRC_REG	0x40
+#define CORE_INTR_SRC_SET_REG	0x44
+#define CORE_INTR_SRC_CLEAR_REG	0x48
+#define CORE_INTR_MASK_REG	0x4c
+#define CORE_INTR_MASK_SET_REG	0x50
+#define CORE_INTR_MASK_CLEAR_REG 0x54
+#define CORE_INTR_SRC_MASKED_REG 0x58
+/* 0x5c Reserved */
+#define USB_END_OF_INTR_REG	0x60
+#define MOP_SOP_INTR_ENABLE	0x64
+/* 0x68-0x6c Reserved */
+#define USB_TX_MODE_REG		0x70	/* Transparent, CDC, [Generic] RNDIS */
+#define USB_RX_MODE_REG		0x74	/* Transparent, CDC, [Generic] RNDIS */
+#define EP_COUNT_MODE_REG	0x78
+#define USB_GENERIC_RNDIS_EP_SIZE_REG(n) (0x80 + (((n) - 1) << 2))
+
+#define QUEUE_THRESHOLD_INTR_ENABLE_REG	0xc0
+#define	QUEUE_63_THRESHOLD_REG	0xc4
+#define QUEUE_63_THRESHOLD_INTR_CLEAR_REG 0xc8
+#define	QUEUE_65_THRESHOLD_REG	0xd4
+#define QUEUE_65_THRESHOLD_INTR_CLEAR_REG 0xd8
+
+/* Control register bits */
+#define USB_SOFT_RESET_MASK	1
+
+/* Mode register bits */
+#define USB_MODE_SHIFT(n)	((((n) - 1) << 1))
+#define USB_MODE_MASK(n)	(3 << USB_MODE_SHIFT(n))
+#define USB_RX_MODE_SHIFT(n)	USB_MODE_SHIFT(n)
+#define USB_TX_MODE_SHIFT(n)	USB_MODE_SHIFT(n)
+#define USB_RX_MODE_MASK(n)	USB_MODE_MASK(n)
+#define USB_TX_MODE_MASK(n)	USB_MODE_MASK(n)
+#define USB_TRANSPARENT_MODE	0
+#define USB_RNDIS_MODE		1
+#define USB_CDC_MODE		2
+#define USB_GENERIC_RNDIS_MODE	3
+
+/* AutoReq register bits */
+#define USB_RX_AUTOREQ_SHIFT(n) (((n) - 1) << 1)
+#define USB_RX_AUTOREQ_MASK(n)	(3 << USB_RX_AUTOREQ_SHIFT(n))
+#define USB_NO_AUTOREQ		0
+#define USB_AUTOREQ_ALL_BUT_EOP 1
+#define USB_AUTOREQ_ALWAYS	3
+
+/* Teardown register bits */
+#define USB_TX_TDOWN_SHIFT(n)	(16 + (n))
+#define USB_TX_TDOWN_MASK(n)	(1 << USB_TX_TDOWN_SHIFT(n))
+#define USB_RX_TDOWN_SHIFT(n)	(n)
+#define USB_RX_TDOWN_MASK(n)	(1 << USB_RX_TDOWN_SHIFT(n))
+
+/* USB interrupt register bits */
+#define USB_INTR_USB_SHIFT	16
+#define USB_INTR_USB_MASK	(0x1ff << USB_INTR_USB_SHIFT) /* 8 Mentor */
+					/* interrupts and DRVVBUS interrupt */
+#define USB_INTR_DRVVBUS	0x100
+#define USB_INTR_RX_SHIFT	16
+#define USB_INTR_TX_SHIFT	0
+
+#define USB_MENTOR_CORE_OFFSET	0x400
+
+#define USB_CPPI41_NUM_CH	15
 
 #endif	/* __ASM_ARCH_OMAP_USB_H */

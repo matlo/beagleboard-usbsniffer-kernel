@@ -10,7 +10,7 @@ comment "Enable Host or Gadget support to see Inventra options"
 config USB_MUSB_HDRC
 	depends on (USB || USB_GADGET)
 	depends on (ARM || (BF54x && !BF544) || (BF52x && !BF522 && !BF523))
-	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
+	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN || MACH_OMAP3517EVM)
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select USB_OTG_UTILS
 	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
@@ -152,7 +152,7 @@ config MUSB_PIO_ONLY
 
 config USB_INVENTRA_DMA
 	bool
-	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY && !MACH_OMAP3517EVM
 	default ARCH_OMAP2430 || ARCH_OMAP34XX || BLACKFIN
 	help
 	  Enable DMA transfers using Mentor's engine.
@@ -176,7 +176,7 @@ config USB_TI_CPPI_DMA
 config USB_TI_CPPI41_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
-	default ARCH_DAVINCI_DA830
+	default ARCH_DAVINCI_DA830 || MACH_OMAP3517EVM
 	select CPPI41
 	help
 	 Enable DMA transfers when TI CPPI 4.1 DMA is available.

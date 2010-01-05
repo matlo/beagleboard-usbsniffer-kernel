@@ -19,7 +19,11 @@ ifeq ($(CONFIG_ARCH_OMAP2430),y)
 endif
 
 ifeq ($(CONFIG_ARCH_OMAP3430),y)
+   ifeq ($(CONFIG_MACH_OMAP3517EVM),y)
+	musb_hdrc-objs  += am3517.o
+   else
 	musb_hdrc-objs	+= omap2430.o
+   endif
 endif
 
 ifeq ($(CONFIG_BF54x),y)
