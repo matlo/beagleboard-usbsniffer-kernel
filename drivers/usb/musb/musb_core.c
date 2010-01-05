@@ -2289,6 +2289,7 @@ static int musb_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	unsigned long	flags;
 	struct musb	*musb = dev_to_musb(&pdev->dev);
+	u8 reg;
 
 	if (!musb->clock)
 		return 0;
@@ -2296,9 +2297,16 @@ static int musb_suspend(struct device *dev)
 	spin_lock_irqsave(&musb->lock, flags);
 
 	if (is_peripheral_active(musb)) {
-		/* FIXME force disconnect unless we know USB will wake
-		 * the system up quickly enough to respond ...
+		/* System is entering into suspend where gadget would not be
+		 * able to respond to host and thus it will be in an unknown
+		 * state for host.Re-enumemation of gadget is required after
+		 * resume to make the gadget functional thus doing a force
+		 * disconnect.
 		 */
+		reg = musb_readb(musb->mregs, MUSB_POWER);
+		reg &= ~MUSB_POWER_SOFTCONN;
+		musb_writeb(musb->mregs, MUSB_POWER, reg);
+
 	} else if (is_host_active(musb)) {
 		/* we know all the children are suspended; sometimes
 		 * they will even be wakeup-enabled.
