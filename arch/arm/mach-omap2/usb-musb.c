@@ -218,6 +218,11 @@ void __init usb_musb_init(void)
 	} else {
 		musb_resources[0].start = OMAP34XX_HSUSB_OTG_BASE;
 		musb_resources[0].end = musb_resources[0].start + SZ_8K - 1;
+		/* OMAP3EVM Rev >= E can source 500mA */
+		if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
+			musb_plat.power = 250;
+			musb_plat.extvbus = 1;
+		}
 	}
 
 	/*
