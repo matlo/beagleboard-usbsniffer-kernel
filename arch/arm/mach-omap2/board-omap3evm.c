@@ -50,6 +50,7 @@
 #include "mmc-twl4030.h"
 #include "pm.h"
 #include "omap3-opp.h"
+#include "board-omap3evm-camera.h"
 
 #define OMAP3_EVM_TS_GPIO	175
 #define OMAP3_EVM_EHCI_VBUS	22
@@ -375,6 +376,40 @@ static struct regulator_init_data omap3evm_vsim = {
 	.consumer_supplies	= &omap3evm_vsim_supply,
 };
 
+static struct platform_device omap3evm_camkit_device = {
+	.name		= "omap3evm_camkit",
+	.id		= -1,
+};
+static struct regulator_consumer_supply omap3evm_vaux2_supplies[] = {
+	{
+		.supply		= "vaux2_1",
+		.dev		= &omap3evm_camkit_device.dev,
+	},
+	{
+		.supply		= "vaux2_2",
+		.dev		= &omap3evm_camkit_device.dev,
+	},
+	{
+		.supply		= "vaux2_3",
+		.dev		= &omap3evm_camkit_device.dev,
+	},
+};
+
+/* VAUX2 for camera module */
+static struct regulator_init_data omap3evm_vaux2 = {
+	.constraints = {
+		.min_uV		= 2800000,
+		.max_uV		= 2800000,
+		.apply_uV	= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(omap3evm_vaux2_supplies),
+	.consumer_supplies		= omap3evm_vaux2_supplies,
+};
+
 static struct twl4030_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -551,6 +586,7 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.codec		= &omap3evm_codec_data,
 	.vdac		= &omap3_evm_vdac,
 	.vpll2		= &omap3_evm_vpll2,
+	.vaux2		= &omap3evm_vaux2,
 };
 
 static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
@@ -639,6 +675,7 @@ static void __init omap3_evm_init_irq(void)
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
 	&omap3_evm_dss_device,
+	&omap3evm_camkit_device,
 };
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
@@ -705,6 +742,9 @@ static void __init omap3_evm_init(void)
 	usb_ehci_init(&ehci_pdata);
 	ads7846_dev_init();
 	omap3evm_init_smsc911x();
+
+	omap3evmdc_init(0, 3, 0x5D);
+
 	omap3_evm_display_init();
 }
 
