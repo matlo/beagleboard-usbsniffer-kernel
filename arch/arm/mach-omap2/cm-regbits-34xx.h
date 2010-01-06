@@ -168,6 +168,12 @@
 #define OMAP3430_EN_SDRC				(1 << 1)
 #define OMAP3430_EN_SDRC_SHIFT				1
 
+/*
+ * On AM35XX MSPro is replaced by another UART (UART4)
+ */
+#define AM35XX_EN_UART4					(1 << 23)
+#define AM35XX_EN_UART4_SHIFT				23
+
 /* CM_ICLKEN2_CORE */
 #define OMAP3430_EN_PKA					(1 << 4)
 #define OMAP3430_EN_PKA_SHIFT				4
