@@ -425,7 +425,12 @@ static void __init am3517_evm_init_irq(void)
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
+#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
+		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+#else
 	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
+#endif
 	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
 
 	.phy_reset  = true,
