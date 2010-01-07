@@ -2728,6 +2728,8 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	SET_ETHTOOL_OPS(ndev, &ethtool_ops);
 	netif_napi_add(ndev, &priv->napi, emac_poll, EMAC_POLL_WEIGHT);
 
+	clk_enable(emac_clk);
+
 	/* register the network device */
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	rc = register_netdev(ndev);
@@ -2737,7 +2739,6 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 		goto netdev_reg_err;
 	}
 
-	clk_enable(emac_clk);
 
 	/* MII/Phy intialisation, mdio bus registration */
 	emac_mii = mdiobus_alloc();
@@ -2777,6 +2778,7 @@ mdiobus_quit:
 
 netdev_reg_err:
 mdio_alloc_err:
+	clk_disable(emac_clk);
 no_irq_res:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, res->end - res->start + 1);
