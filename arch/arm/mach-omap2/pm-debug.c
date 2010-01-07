@@ -488,9 +488,11 @@ int pm_dbg_regset_init(int reg_set)
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
-	*val = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	int ret;
+	ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	*val = ret;
 
-	if (*val >= 0)
+	if (ret >= 0)
 		return 0;
 	return *val;
 }
@@ -604,6 +606,4 @@ static int __init pm_dbg_init(void)
 }
 arch_initcall(pm_dbg_init);
 
-#else
-void pm_dbg_update_time(struct powerdomain *pwrdm, int prev) {}
 #endif
