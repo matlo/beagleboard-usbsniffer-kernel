@@ -571,6 +571,11 @@ static void __init am3517_evm_init(void)
 
 	i2c_register_board_info(1, am3517evm_i2c_boardinfo,
 				ARRAY_SIZE(am3517evm_i2c_boardinfo));
+
+	clk_add_alias("master", "dm644x_ccdc", "master",
+			&vpfe_capture_dev.dev);
+	clk_add_alias("slave", "dm644x_ccdc", "slave",
+			&vpfe_capture_dev.dev);
 	/* DSS */
 	am3517_evm_display_init();
 
