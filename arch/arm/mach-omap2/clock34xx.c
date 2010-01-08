@@ -46,6 +46,7 @@
 #include "prm-regbits-34xx.h"
 #include "cm.h"
 #include "cm-regbits-34xx.h"
+#include "omap3-opp.h"
 
 #define CYCLES_PER_MHZ			1000000
 
@@ -355,7 +356,11 @@ void omap3_clk_lock_dpll5(void)
 static int __init omap2_clk_arch_init(void)
 {
 	struct clk *osc_sys_ck, *dpll1_ck, *arm_fck, *core_ck;
+	struct clk *dpll2_ck, *iva2_ck;
 	unsigned long osc_sys_rate;
+	unsigned long dsprate;
+	struct omap_opp *opp_table;
+	short opp=0, valid=0, i;
 	short err = 0 ;
 
 	if (!mpurate)
@@ -377,12 +382,54 @@ static int __init omap2_clk_arch_init(void)
 	if (WARN(IS_ERR(osc_sys_ck), "Failed to get osc_sys_ck.\n"))
 		err = 1;
 
+	dpll2_ck = clk_get(NULL, "dpll2_ck");
+	if (WARN(IS_ERR("dpll2_ck"), "Failed to get dpll2_ck.\n"))
+		err = 1;
+
+	iva2_ck = clk_get(NULL, "iva2_ck");
+	if (WARN(IS_ERR("iva2_ck"), "Failed to get iva2_ck.\n"))
+		err = 1;
+
 	if (err)
 		return -ENOENT;
 
-	/* REVISIT: not yet ready for 343x */
+	/* Check if mpurate is valid */
+	if (mpu_opps) {
+		opp_table = mpu_opps;
+
+		for (i = 1; opp_table[i].opp_id <= MAX_VDD1_OPP; i++) {
+			if (opp_table[i].rate == mpurate) {
+				valid = 1;
+				break;
+			}
+		}
+
+		if (valid) {
+			opp = opp_table[i].opp_id;
+		} else {
+			pr_err("*** Invalid MPU rate (%u)\n", mpurate);
+			return 1;
+		}
+	}
+
 	if (clk_set_rate(dpll1_ck, mpurate))
 		printk(KERN_ERR "*** Unable to set MPU rate\n");
+
+	/* Get dsprate corresponding to the opp */
+	if ((cpu_is_omap3430() || cpu_is_omap3530() || cpu_is_omap3525())
+		&& (dsp_opps)
+		&& (opp >= MIN_VDD1_OPP) && (opp <= MAX_VDD1_OPP)) {
+		opp_table = dsp_opps;
+
+		for (i=0;  opp_table[i].opp_id <= MAX_VDD1_OPP; i++)
+			if (opp_table[i].opp_id == opp)
+				break;
+
+		dsprate = opp_table[i].rate;
+
+		if (clk_set_rate(dpll2_ck, dsprate))
+			pr_err("*** Unable to set IVA2 rate\n");
+	}
 
 	recalculate_root_clocks();
 
@@ -394,6 +441,8 @@ static int __init omap2_clk_arch_init(void)
 		((osc_sys_rate / 100000) % 10),
 		(clk_get_rate(core_ck) / 1000000),
 		(clk_get_rate(arm_fck) / 1000000));
+	pr_info("IVA2 clocking rate: %ld MHz\n",
+	       (clk_get_rate(iva2_ck) / 1000000)) ;
 
 	calibrate_delay();
 
