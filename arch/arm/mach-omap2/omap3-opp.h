@@ -4,6 +4,7 @@
 #include <plat/omap-pm.h>
 
 /* MPU speeds */
+#define S720M   720000000
 #define S600M   600000000
 #define S550M   550000000
 #define S500M   500000000
@@ -11,6 +12,7 @@
 #define S125M   125000000
 
 /* DSP speeds */
+#define S520M   520000000
 #define S430M   430000000
 #define S400M   400000000
 #define S360M   360000000
@@ -33,6 +35,8 @@ static struct omap_opp omap3_mpu_rate_table[] = {
 	{S550M, VDD1_OPP4, 0x36},
 	/*OPP5*/
 	{S600M, VDD1_OPP5, 0x3C},
+	/*OPP6*/
+	{S720M, VDD1_OPP6, 0x3C},
 };
 
 static struct omap_opp omap3_l3_rate_table[] = {
@@ -57,6 +61,8 @@ static struct omap_opp omap3_dsp_rate_table[] = {
 	{S400M, VDD1_OPP4, 0x36},
 	/*OPP5*/
 	{S430M, VDD1_OPP5, 0x3C},
+	/*OPP5*/
+	{S520M, VDD1_OPP6, 0x3C},
 };
 
 #endif

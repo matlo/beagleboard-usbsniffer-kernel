@@ -393,6 +393,15 @@ static int __init omap2_clk_arch_init(void)
 	if (err)
 		return -ENOENT;
 
+	if ((mpurate == S720M) && !omap3_has_720m()) {
+		/*
+		 * Silicon doesn't support this rate.
+		 * Use the next highest.
+		 */
+		mpurate = S600M;
+		pr_err("*** This silicon doesn't support 720MHz\n");
+	}
+
 	/* Check if mpurate is valid */
 	if (mpu_opps) {
 		opp_table = mpu_opps;
