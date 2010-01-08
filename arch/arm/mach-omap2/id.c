@@ -379,19 +379,18 @@ void __init omap2_check_revision(void)
 		omap_chip.oc |= CHIP_IS_OMAP2420;
 	} else if (cpu_is_omap3505() || cpu_is_omap3517()) {
 		omap_chip.oc = CHIP_IS_OMAP3430 | CHIP_IS_OMAP3430ES3_1;
+	} else if (cpu_is_omap3630()) {
+		omap_chip.oc = CHIP_IS_OMAP3430 | CHIP_IS_OMAP3630ES1;
 	} else if (cpu_is_omap343x()) {
 		omap_chip.oc = CHIP_IS_OMAP3430;
-		if (omap_rev() == OMAP3430_REV_ES1_0)
+		if (omap_rev_is_1_0())
 			omap_chip.oc |= CHIP_IS_OMAP3430ES1;
-		else if (omap_rev() >= OMAP3430_REV_ES2_0 &&
-			 omap_rev() <= OMAP3430_REV_ES2_1)
+		else if (omap_rev_is_2_0() || omap_rev_is_2_1())
 			omap_chip.oc |= CHIP_IS_OMAP3430ES2;
-		else if (omap_rev() == OMAP3430_REV_ES3_0)
+		else if (omap_rev_is_3_0())
 			omap_chip.oc |= CHIP_IS_OMAP3430ES3_0;
-		else if (omap_rev() == OMAP3430_REV_ES3_1)
+		else if (omap_rev_is_3_1())
 			omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
-		else if (omap_rev() == OMAP3630_REV_ES1_0)
-			omap_chip.oc |= CHIP_IS_OMAP3630ES1;
 	} else {
 		pr_err("Uninitialized omap_chip, please fix!\n");
 	}

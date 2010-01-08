@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 
+#include <plat/cpu.h>
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
 #include <plat/powerdomain.h>
@@ -125,7 +126,9 @@ static void omap3_enable_io_chain(void)
 {
 	int timeout = 0;
 
-	if (omap_rev() >= OMAP3430_REV_ES3_1) {
+	if ((cpu_is_omap34xx() && omap_rev_ge_3_1())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) {
 		prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN, WKUP_MOD, PM_WKEN);
 		/* Do a readback to assure write has been done */
 		prm_read_mod_reg(WKUP_MOD, PM_WKEN);
@@ -146,7 +149,9 @@ static void omap3_enable_io_chain(void)
 
 static void omap3_disable_io_chain(void)
 {
-	if (omap_rev() >= OMAP3430_REV_ES3_1)
+	if ((cpu_is_omap34xx() && omap_rev_ge_3_1())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630())
 		prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN, WKUP_MOD, PM_WKEN);
 }
 
@@ -273,7 +278,10 @@ static int _prcm_int_handle_wakeup(void)
 	c = prcm_clear_mod_irqs(WKUP_MOD, 1);
 	c += prcm_clear_mod_irqs(CORE_MOD, 1);
 	c += prcm_clear_mod_irqs(OMAP3430_PER_MOD, 1);
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
+
+	if ((cpu_is_omap34xx() && omap_rev_gt_1_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) {
 		c += prcm_clear_mod_irqs(CORE_MOD, 3);
 		c += prcm_clear_mod_irqs(OMAP3430ES2_USBHOST_MOD, 1);
 	}
@@ -464,7 +472,9 @@ void omap_sram_idle(void)
 	* of AUTO_CNT = 1 enabled. This takes care of errata 1.142.
 	* Hence store/restore the SDRC_POWER register here.
 	*/
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
+	if (((cpu_is_omap34xx() && omap_rev_ge_3_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) &&
 	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
@@ -484,7 +494,9 @@ void omap_sram_idle(void)
 		pm_dbg_regset_save(2);
 
 	/* Restore normal SDRC POWER settings */
-	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
+	if (((cpu_is_omap34xx() && omap_rev_ge_3_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) &&
 	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_write_reg(sdrc_pwr, SDRC_POWER);
@@ -834,7 +846,10 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(0, OMAP3430_NEON_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, OMAP3430_CAM_MOD, PM_WKDEP);
 	prm_write_mod_reg(0, OMAP3430_PER_MOD, PM_WKDEP);
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
+
+	if ((cpu_is_omap34xx() && omap_rev_gt_1_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) {
 		prm_write_mod_reg(0, OMAP3430ES2_SGX_MOD, PM_WKDEP);
 		prm_write_mod_reg(0, OMAP3430ES2_USBHOST_MOD, PM_WKDEP);
 	} else
@@ -885,7 +900,9 @@ static void __init prcm_setup_regs(void)
 		OMAP3430_AUTO_DES1,
 		CORE_MOD, CM_AUTOIDLE2);
 
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
+	if ((cpu_is_omap34xx() && omap_rev_gt_1_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) {
 		cm_write_mod_reg(
 			OMAP3430_AUTO_MAD2D |
 			OMAP3430ES2_AUTO_USBTLL,
@@ -933,7 +950,9 @@ static void __init prcm_setup_regs(void)
 		OMAP3430_PER_MOD,
 		CM_AUTOIDLE);
 
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
+	if ((cpu_is_omap34xx() && omap_rev_gt_1_0())
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_is_omap3630()) {
 		cm_write_mod_reg(
 			OMAP3430ES2_AUTO_USBHOST,
 			OMAP3430ES2_USBHOST_MOD,

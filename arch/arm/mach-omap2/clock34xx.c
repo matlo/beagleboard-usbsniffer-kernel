@@ -159,7 +159,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	 * on 3430ES1 prevents us from changing DPLL multipliers or dividers
 	 * on DPLL4.
 	 */
-	if (omap_rev() == OMAP3430_REV_ES1_0) {
+	if (cpu_is_omap34xx() && omap_rev_is_1_0()) {
 		printk(KERN_ERR "clock: DPLL4 cannot change rate due to "
 		       "silicon 'Limitation 2.5' on 3430ES1.\n");
 		return -EINVAL;
