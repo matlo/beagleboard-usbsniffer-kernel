@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/i2c/tsc2004.h>
 #include <linux/davinci_emac.h>
+#include <linux/i2c/pca953x.h>
 
 #include <mach/hardware.h>
 #include <mach/am35xx.h>
@@ -485,12 +486,41 @@ static struct i2c_board_info __initdata am3517evm_i2c_boardinfo[] = {
 	},
 };
 
+/* TCA6416 I2C Expander */
+static struct pca953x_platform_data am3517evm_gpio_expander_info = {
+	.gpio_base	= OMAP_MAX_GPIO_LINES,
+};
+static struct i2c_board_info __initdata am3517evm_tca6516_info[] = {
+	{
+		I2C_BOARD_INFO("tca6416", 0x21),
+		.platform_data = &am3517evm_gpio_expander_info,
+	},
+};
+
+static struct pca953x_platform_data am3517evm_ui_gpio_expander_info_1 = {
+	.gpio_base	= OMAP_MAX_GPIO_LINES + 16,
+};
+static struct pca953x_platform_data am3517evm_ui_gpio_expander_info_2 = {
+	.gpio_base	= OMAP_MAX_GPIO_LINES + 32,
+};
+static struct i2c_board_info __initdata am3517evm_ui_tca6516_info[] = {
+	{
+		I2C_BOARD_INFO("tca6416", 0x20),
+		.platform_data = &am3517evm_ui_gpio_expander_info_1,
+	},
+	{
+		I2C_BOARD_INFO("tca6416", 0x21),
+		.platform_data = &am3517evm_ui_gpio_expander_info_2,
+	},
+};
 
 static int __init am3517_evm_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 400, NULL, 0);
-	omap_register_i2c_bus(2, 400, NULL, 0);
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(2, 400, am3517evm_tca6516_info,
+			ARRAY_SIZE(am3517evm_tca6516_info));
+	omap_register_i2c_bus(3, 400, am3517evm_ui_tca6516_info,
+			ARRAY_SIZE(am3517evm_ui_tca6516_info));
 
 	return 0;
 }
