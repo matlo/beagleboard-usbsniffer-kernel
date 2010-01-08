@@ -539,7 +539,24 @@ static void vpfe_schedule_next_buffer(struct vpfe_device *vpfe_dev)
 					struct videobuf_buffer, queue);
 	list_del(&vpfe_dev->next_frm->queue);
 	vpfe_dev->next_frm->state = VIDEOBUF_ACTIVE;
-	addr = videobuf_to_dma_contig(vpfe_dev->next_frm);
+	if (V4L2_MEMORY_USERPTR == vpfe_dev->memory)
+		addr = vpfe_dev->cur_frm->boff;
+	else
+		addr = videobuf_to_dma_contig(vpfe_dev->next_frm);
+
+	ccdc_dev->hw_ops.setfbaddr(addr);
+}
+
+static void vpfe_schedule_bottom_field(struct vpfe_device *vpfe_dev)
+{
+	unsigned long addr;
+
+	if (V4L2_MEMORY_USERPTR == vpfe_dev->memory)
+		addr = vpfe_dev->cur_frm->boff;
+	else
+		addr = videobuf_to_dma_contig(vpfe_dev->cur_frm);
+
+	addr += vpfe_dev->field_off;
 	ccdc_dev->hw_ops.setfbaddr(addr);
 }
 
@@ -560,7 +577,6 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 {
 	struct vpfe_device *vpfe_dev = dev_id;
 	enum v4l2_field field;
-	unsigned long addr;
 	int fid;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "\nStarting vpfe_isr...\n");
@@ -605,10 +621,7 @@ static irqreturn_t vpfe_isr(int irq, void *dev_id)
 			 * the CCDC memory address
 			 */
 			if (field == V4L2_FIELD_SEQ_TB) {
-				addr =
-				  videobuf_to_dma_contig(vpfe_dev->cur_frm);
-				addr += vpfe_dev->field_off;
-				ccdc_dev->hw_ops.setfbaddr(addr);
+				vpfe_schedule_bottom_field(vpfe_dev);
 			}
 			goto clear_intr;
 		}
@@ -1235,13 +1248,56 @@ static int vpfe_videobuf_setup(struct videobuf_queue *vq,
 	struct vpfe_device *vpfe_dev = fh->vpfe_dev;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_setup\n");
-	*size = config_params.device_bufsize;
+	*size = vpfe_dev->fmt.fmt.pix.sizeimage;
+	if (vpfe_dev->memory == V4L2_MEMORY_MMAP &&
+		vpfe_dev->fmt.fmt.pix.sizeimage > config_params.device_bufsize)
+		*size = config_params.device_bufsize;
 
 	if (*count < config_params.min_numbuffers)
 		*count = config_params.min_numbuffers;
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 		"count=%d, size=%d\n", *count, *size);
 	return 0;
+}
+
+/*
+ * vpfe_uservirt_to_phys: This function is used to convert user
+ * space virtual address to physical address.
+ */
+static u32 vpfe_uservirt_to_phys(struct vpfe_device *vpfe_dev, u32 virtp)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long physp = 0;
+	struct vm_area_struct *vma;
+
+	vma = find_vma(mm, virtp);
+
+	/* For kernel direct-mapped memory, take the easy way */
+	if (virtp >= PAGE_OFFSET)
+		physp = virt_to_phys((void *)virtp);
+	else if (vma && (vma->vm_flags & VM_IO) && (vma->vm_pgoff))
+		/* this will catch, kernel-allocated, mmaped-to-usermode addr */
+		physp = (vma->vm_pgoff << PAGE_SHIFT) + (virtp - vma->vm_start);
+	else {
+		/* otherwise, use get_user_pages() for general userland pages */
+		int res, nr_pages = 1;
+		struct page *pages;
+		down_read(&current->mm->mmap_sem);
+
+		res = get_user_pages(current, current->mm,
+				     virtp, nr_pages, 1, 0, &pages, NULL);
+		up_read(&current->mm->mmap_sem);
+
+		if (res == nr_pages)
+			physp = __pa(page_address(&pages[0]) +
+				     (virtp & ~PAGE_MASK));
+		else {
+			v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+				"get_user_pages failed\n");
+			return 0;
+		}
+	}
+	return physp;
 }
 
 static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
@@ -1259,6 +1315,18 @@ static int vpfe_videobuf_prepare(struct videobuf_queue *vq,
 		vb->height = vpfe_dev->fmt.fmt.pix.height;
 		vb->size = vpfe_dev->fmt.fmt.pix.sizeimage;
 		vb->field = field;
+	}
+
+	if (V4L2_MEMORY_USERPTR == vpfe_dev->memory) {
+		if (!vb->baddr) {
+			v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+				"buffer address is 0\n");
+			return -EINVAL;
+		}
+		vb->boff = vpfe_uservirt_to_phys(vpfe_dev, vb->baddr);
+		/* Make sure user addresses are aligned to 32 bytes */
+		if (!ALIGN(vb->boff, 32))
+			return -EINVAL;
 	}
 	vb->state = VIDEOBUF_PREPARED;
 	return 0;
@@ -1326,13 +1394,6 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != req_buf->type) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Invalid buffer type\n");
 		return -EINVAL;
-	}
-
-	if (V4L2_MEMORY_USERPTR == req_buf->memory) {
-		/* we don't support user ptr IO */
-		v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_reqbufs:"
-			 " USERPTR IO not supported\n");
-		return  -EINVAL;
 	}
 
 	ret = mutex_lock_interruptible(&vpfe_dev->lock);
@@ -1542,7 +1603,10 @@ static int vpfe_streamon(struct file *file, void *priv,
 	vpfe_dev->cur_frm->state = VIDEOBUF_ACTIVE;
 	/* Initialize field_id and started member */
 	vpfe_dev->field_id = 0;
-	addr = videobuf_to_dma_contig(vpfe_dev->cur_frm);
+	if (V4L2_MEMORY_USERPTR == vpfe_dev->memory)
+		addr = vpfe_dev->cur_frm->boff;
+	else
+		addr = videobuf_to_dma_contig(vpfe_dev->cur_frm);
 
 	/* Calculate field offset */
 	vpfe_calculate_offsets(vpfe_dev);
