@@ -82,6 +82,15 @@ config MACH_OMAP3EVM
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
 	select OMAP_PACKAGE_CBB
 
+config PMIC_TWL4030
+	bool "TWL4030/TPS65950 Power Module"
+	default y
+	depends on TWL4030_CORE && MACH_OMAP3EVM
+	select REGULATOR_TWL4030 if REGULATOR
+	help
+	  Say yes here if you are using the TWL4030/TPS65950 based power module
+	  for the EVM boards.
+
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
