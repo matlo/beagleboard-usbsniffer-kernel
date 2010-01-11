@@ -1,4 +1,5 @@
 /* platform data for the PCA9539 16-bit I/O expander driver */
+#include <linux/i2c.h>
 
 struct pca953x_platform_data {
 	/* number of the first GPIO */
