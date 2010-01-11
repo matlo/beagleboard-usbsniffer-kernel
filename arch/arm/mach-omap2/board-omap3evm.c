@@ -62,6 +62,12 @@
 #define OMAP3EVM_ETHR_GPIO_IRQ	176
 #define OMAP3EVM_SMSC911X_CS	5
 
+extern struct regulator_consumer_supply twl4030_vmmc1_supply;
+extern struct regulator_consumer_supply twl4030_vsim_supply;
+
+extern struct regulator_init_data vmmc1_data;
+extern struct regulator_init_data vsim_data;
+
 static u8 omap3_evm_version;
 
 u8 get_omap3_evm_rev(void)
@@ -415,8 +421,8 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	twl4030_mmc_init(mmc);
 
 	/* link regulators to MMC adapters */
-	omap3evm_vmmc1_supply.dev = mmc[0].dev;
-	omap3evm_vsim_supply.dev = mmc[0].dev;
+	twl4030_vmmc1_supply.dev = mmc[0].dev;
+	twl4030_vsim_supply.dev = mmc[0].dev;
 
 	/*
 	 * Most GPIOs are for USB OTG.  Some are mostly sent to
@@ -569,8 +575,8 @@ static int __init omap3_evm_i2c_init(void)
 	 * REVISIT: These entries can be set in omap3evm_twl_data
 	 * after a merge with MFD tree
 	 */
-	omap3evm_twldata.vmmc1 = &omap3evm_vmmc1;
-	omap3evm_twldata.vsim = &omap3evm_vsim;
+	omap3evm_twldata.vmmc1 = &vmmc1_data;
+	omap3evm_twldata.vsim = &vsim_data;
 
 	omap_register_i2c_bus(1, 2600, omap3evm_i2c_boardinfo,
 			ARRAY_SIZE(omap3evm_i2c_boardinfo));
