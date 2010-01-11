@@ -348,22 +348,12 @@ static struct platform_device omap3evm_camkit_device = {
 	.name		= "omap3evm_camkit",
 	.id		= -1,
 };
-static struct regulator_consumer_supply omap3evm_vaux2_supplies[] = {
-	{
-		.supply		= "vaux2_1",
-		.dev		= &omap3evm_camkit_device.dev,
-	},
-	{
-		.supply		= "vaux2_2",
-		.dev		= &omap3evm_camkit_device.dev,
-	},
-	{
-		.supply		= "vaux2_3",
-		.dev		= &omap3evm_camkit_device.dev,
-	},
+
+static struct regulator_consumer_supply omap3evm_vaux2_supplies = {
+	.supply		= "hsusb1",
 };
 
-/* VAUX2 for camera module */
+/* VAUX2 for USB */
 static struct regulator_init_data omap3evm_vaux2 = {
 	.constraints = {
 		.min_uV		= 2800000,
@@ -374,8 +364,8 @@ static struct regulator_init_data omap3evm_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies		= ARRAY_SIZE(omap3evm_vaux2_supplies),
-	.consumer_supplies		= omap3evm_vaux2_supplies,
+	.num_consumer_supplies		= 1,
+	.consumer_supplies		= &omap3evm_vaux2_supplies,
 };
 
 static struct twl4030_hsmmc_info mmc[] = {
@@ -545,6 +535,46 @@ static struct regulator_init_data omap3_evm_vpll2 = {
 	.consumer_supplies	= &omap3_evm_vpll2_supply,
 };
 
+/* VUSB1V5 */
+static struct regulator_consumer_supply omap3_evm_vusb1v5_supply = {
+	.supply		= "hsusb1-aux",
+};
+
+static struct regulator_init_data omap3_evm_vusb1v5 = {
+	.constraints = {
+		.name			= "VUSB1V5",
+		.min_uV			= 1500000,
+		.max_uV			= 1500000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vusb1v5_supply,
+};
+
+/* VUSB1V8 */
+static struct regulator_consumer_supply omap3_evm_vusb1v8_supply = {
+	.supply		= "hsusb1",
+};
+
+static struct regulator_init_data omap3_evm_vusb1v8 = {
+	.constraints = {
+		.name			= "VUSB1V8",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vusb1v8_supply,
+};
+
 static struct twl4030_platform_data omap3evm_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -677,6 +707,14 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
+		omap3evm_twldata.vaux2 = &omap3evm_vaux2;
+	} else {
+		omap3evm_twldata.vusb1v5 = &omap3_evm_vusb1v5;
+		omap3evm_twldata.vusb1v8 = &omap3_evm_vusb1v8;
+	}
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
