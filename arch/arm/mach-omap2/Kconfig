@@ -96,6 +96,15 @@ config MACH_OMAP3517EVM
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
 	select OMAP_PACKAGE_CBB
 
+config PMIC_TPS65023
+	bool "TPS65023 Power Module"
+	default y
+	depends on I2C=y && MACH_OMAP3517EVM
+	select REGULATOR_TPS65023 if REGULATOR
+	help
+	  Say yes here if you are using the TPS65023 based power module for the
+	  EVM boards.
+
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
