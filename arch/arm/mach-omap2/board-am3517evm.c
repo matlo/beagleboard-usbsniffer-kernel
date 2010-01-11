@@ -22,6 +22,10 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c/tsc2004.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand.h>
+
 #include <linux/davinci_emac.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/regulator/machine.h>
@@ -37,11 +41,107 @@
 #include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/gpmc.h>
+#include <plat/nand.h>
 
 #include <media/tvp514x.h>
 #include <media/ti-media/vpfe_capture.h>
 
 #include "mux.h"
+
+#define GPMC_CS0_BASE  0x60
+#define GPMC_CS_SIZE   0x30
+
+#define NAND_BLOCK_SIZE        SZ_128K
+
+static struct mtd_partition am3517evm_nand_partitions[] = {
+/* All the partition sizes are listed in terms of NAND block size */
+{
+       .name           = "xloader-nand",
+       .offset         = 0,
+       .size           = 4*(SZ_128K),
+       .mask_flags     = MTD_WRITEABLE
+},
+{
+       .name           = "uboot-nand",
+       .offset         = MTDPART_OFS_APPEND,
+       .size           = 14*(SZ_128K),
+       .mask_flags     = MTD_WRITEABLE
+},
+{
+       .name           = "params-nand",
+       .offset         = MTDPART_OFS_APPEND,
+       .size           = 2*(SZ_128K)
+},
+{
+       .name           = "linux-nand",
+       .offset         = MTDPART_OFS_APPEND,
+       .size           = 40*(SZ_128K)
+},
+{
+       .name           = "jffs2-nand",
+       .size           = MTDPART_SIZ_FULL,
+       .offset         = MTDPART_OFS_APPEND,
+},
+};
+
+static struct omap_nand_platform_data am3517evm_nand_data = {
+       .parts          = am3517evm_nand_partitions,
+       .nr_parts       = ARRAY_SIZE(am3517evm_nand_partitions),
+       .nand_setup     = NULL,
+       .dma_channel    = -1,           /* disable DMA in OMAP NAND driver */
+       .dev_ready      = NULL,
+};
+
+static struct resource am3517evm_nand_resource = {
+       .flags          = IORESOURCE_MEM,
+};
+
+static struct platform_device am3517evm_nand_device = {
+       .name           = "omap2-nand",
+       .id             = 0,
+       .dev            = {
+                       .platform_data  = &am3517evm_nand_data,
+       },
+       .num_resources  = 1,
+       .resource       = &am3517evm_nand_resource,
+};
+
+void __init am3517evm_flash_init(void)
+{
+       u8 cs = 0;
+       u8 nandcs = GPMC_CS_NUM + 1;
+       u32 gpmc_base_add = OMAP34XX_GPMC_VIRT;
+
+       while (cs < GPMC_CS_NUM) {
+               u32 ret = 0;
+               ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+
+               if ((ret & 0xC00) == 0x800) {
+                       /* Found it!! */
+                       if (nandcs > GPMC_CS_NUM)
+                               nandcs = cs;
+               }
+               cs++;
+       }
+       if (nandcs > GPMC_CS_NUM) {
+               printk(KERN_INFO "NAND: Unable to find configuration "
+                       " in GPMC\n ");
+               return;
+       }
+
+       if (nandcs < GPMC_CS_NUM) {
+               am3517evm_nand_data.cs   = nandcs;
+               am3517evm_nand_data.gpmc_cs_baseaddr = (void *)(gpmc_base_add +
+                                       GPMC_CS0_BASE + nandcs*GPMC_CS_SIZE);
+               am3517evm_nand_data.gpmc_baseaddr   = (void *) (gpmc_base_add);
+
+               if (platform_device_register(&am3517evm_nand_device) < 0)
+                       printk(KERN_ERR "Unable to register NAND device\n");
+
+       }
+}
+
 
 #define AM35XX_EVM_PHY_MASK		(0xF)
 #define AM35XX_EVM_MDIO_FREQUENCY    	(1000000)
@@ -709,6 +809,7 @@ static void __init am3517_evm_init(void)
 				ARRAY_SIZE(am3517_evm_devices));
 
 	omap_serial_init();
+	am3517evm_flash_init();
 	usb_musb_init();
 	usb_ehci_init(&ehci_pdata);
 
