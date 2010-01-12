@@ -48,6 +48,7 @@
 #include <media/tvp514x.h>
 #include <media/ti-media/vpfe_capture.h>
 
+#include "mmc-am3517evm.h"
 #include "mux.h"
 
 #define GPMC_CS0_BASE  0x60
@@ -794,7 +795,7 @@ static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
         r = gpio_request(CAN_STB, "can_stb");
         if (r) {
                 printk(KERN_ERR "failed to get can_stb \n");
-		return;                
+		return;
         }
 
         gpio_direction_output(CAN_STB, 0);
@@ -854,6 +855,24 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
 #endif
 
+static struct am3517_hsmmc_info mmc[] = {
+	{
+		.mmc            = 1,
+		.wires          = 4,
+		/*TODO: Need to change*/
+		.gpio_cd        = 127,
+		.gpio_wp        = 126,
+	},
+	{
+		.mmc            = 2,
+		.wires          = 4,
+		/*TODO: Need to change*/
+		.gpio_cd        = 128,
+		.gpio_wp        = 129,
+	},
+	{}      /* Terminator */
+};
+
 static void __init am3517_evm_init(void)
 {
 	am3517_evm_i2c_init();
@@ -894,6 +913,9 @@ static void __init am3517_evm_init(void)
 	/*Ethernet*/
 	am3517_evm_ethernet_init(&am3517_evm_emac_pdata);
 	am3517_evm_hecc_init(&am3517_evm_hecc_pdata);
+
+	/* MMC init function */
+	am3517_mmc_init(mmc);
 }
 
 static void __init am3517_evm_map_io(void)
