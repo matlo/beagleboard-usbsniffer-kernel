@@ -2395,9 +2395,6 @@ struct device *isp_get(void)
 			isp_restore_ctx(&pdev->dev);
 		else
 			has_context = 1;
-	} else {
-		mutex_unlock(&isp->isp_mutex);
-		return NULL;
 	}
 	isp->ref_count++;
 	mutex_unlock(&(isp->isp_mutex));
