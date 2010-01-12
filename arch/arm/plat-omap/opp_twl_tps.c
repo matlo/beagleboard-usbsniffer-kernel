@@ -36,14 +36,6 @@ unsigned long omap_twl_vsel_to_uv(const u8 vsel)
  */
 u8 omap_twl_uv_to_vsel(unsigned long uv)
 {
-	u8 vsel;
-
-	vsel = ((uv / 100) - 6000) / 125;
-
-	/* round off to higher voltage */
-	/* XXX Surely not the best way to handle this. */
-	if (uv > omap_twl_vsel_to_uv(vsel))
-		vsel++;
-
-	return vsel;
+	/* Round up to higher voltage */
+	return (((uv + 99) / 100 - 6000) + 124) / 125;
 }
