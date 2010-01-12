@@ -29,6 +29,7 @@
 #include <linux/davinci_emac.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/regulator/machine.h>
+#include <linux/can/platform/ti_hecc.h>
 
 #include <mach/hardware.h>
 #include <mach/am35xx.h>
@@ -753,6 +754,59 @@ static int __init am3517_evm_i2c_init(void)
 }
 
 /*
+ * HECC information
+ */
+
+static struct resource am3517_hecc_resources[] = {
+        {
+                .start  = AM35XX_IPSS_HECC_BASE,
+                .end    = AM35XX_IPSS_HECC_BASE + 0x3FFF,
+                .flags  = IORESOURCE_MEM,
+        },
+        {
+                .start  = INT_35XX_HECC0_IRQ,
+                .end    = INT_35XX_HECC0_IRQ,
+                .flags  = IORESOURCE_IRQ,
+        },
+};
+
+static struct platform_device am3517_hecc_device = {
+        .name           = "ti_hecc",
+        .id             = 1,
+        .num_resources  = ARRAY_SIZE(am3517_hecc_resources),
+        .resource       = am3517_hecc_resources,
+};
+
+static struct ti_hecc_platform_data am3517_evm_hecc_pdata = {
+        .scc_hecc_offset        = AM35XX_HECC_SCC_HECC_OFFSET,
+        .scc_ram_offset         = AM35XX_HECC_SCC_RAM_OFFSET,
+        .hecc_ram_offset        = AM35XX_HECC_RAM_OFFSET,
+        .mbx_offset            = AM35XX_HECC_MBOX_OFFSET,
+        .int_line               = AM35XX_HECC_INT_LINE,
+        .version                = AM35XX_HECC_VERSION,
+};
+
+#define CAN_STB		230
+static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
+{
+	int r;
+
+        r = gpio_request(CAN_STB, "can_stb");
+        if (r) {
+                printk(KERN_ERR "failed to get can_stb \n");
+		return;                
+        }
+
+        gpio_direction_output(CAN_STB, 0);
+
+        am3517_hecc_device.dev.platform_data = pdata;
+        platform_device_register(&am3517_hecc_device);
+}
+
+
+
+
+/*
  * Board initialization
  */
 static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
@@ -839,6 +893,7 @@ static void __init am3517_evm_init(void)
 
 	/*Ethernet*/
 	am3517_evm_ethernet_init(&am3517_evm_emac_pdata);
+	am3517_evm_hecc_init(&am3517_evm_hecc_pdata);
 }
 
 static void __init am3517_evm_map_io(void)
