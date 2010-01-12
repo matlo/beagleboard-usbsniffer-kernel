@@ -613,7 +613,8 @@ static void isp_power_settings(struct device *dev, int idle)
 			       (ISP_SYSCONFIG_MIDLEMODE_SMARTSTANDBY <<
 				ISP_SYSCONFIG_MIDLEMODE_SHIFT),
 			       OMAP3_ISP_IOMEM_MAIN, ISP_SYSCONFIG);
-		if (omap_rev() == OMAP3430_REV_ES1_0) {
+		if (!cpu_is_omap3630() && cpu_is_omap34xx() &&
+				omap_rev_is_1_0()) {
 			isp_reg_writel(dev, ISPCSI1_AUTOIDLE |
 				       (ISPCSI1_MIDLEMODE_SMARTSTANDBY <<
 					ISPCSI1_MIDLEMODE_SHIFT),
@@ -633,7 +634,8 @@ static void isp_power_settings(struct device *dev, int idle)
 			       (ISP_SYSCONFIG_MIDLEMODE_FORCESTANDBY <<
 				ISP_SYSCONFIG_MIDLEMODE_SHIFT),
 			       OMAP3_ISP_IOMEM_MAIN, ISP_SYSCONFIG);
-		if (omap_rev() == OMAP3430_REV_ES1_0) {
+		if (!cpu_is_omap3630() && cpu_is_omap34xx() &&
+				omap_rev_is_1_0()) {
 			isp_reg_writel(dev, ISPCSI1_AUTOIDLE |
 				       (ISPCSI1_MIDLEMODE_FORCESTANDBY <<
 					ISPCSI1_MIDLEMODE_SHIFT),

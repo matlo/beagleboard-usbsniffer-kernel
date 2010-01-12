@@ -347,7 +347,7 @@ int ispresizer_try_pipeline(struct isp_res_device *isp_res,
 	if (pipe->rsz_out_h < 2)
 		pipe->rsz_out_h = 2;
 
-	if (omap_rev() == OMAP3430_REV_ES1_0) {
+	if (!cpu_is_omap3630() && cpu_is_omap34xx() && omap_rev_is_1_0()) {
 		max_in_otf = MAX_IN_WIDTH_ONTHEFLY_MODE;
 		max_out_7tap = MAX_7TAP_VRSZ_OUTWIDTH;
 	} else {

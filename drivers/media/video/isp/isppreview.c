@@ -1493,7 +1493,7 @@ int isppreview_try_pipeline(struct isp_prev_device *isp_prev,
 		       "width < 16 or height < 32 \n");
 		return -EINVAL;
 	}
-	if (omap_rev() == OMAP3430_REV_ES1_0)
+	if (!cpu_is_omap3630() && cpu_is_omap34xx() && omap_rev_is_1_0())
 		max_out = ISPPRV_MAXOUTPUT_WIDTH;
 	else
 		max_out = ISPPRV_MAXOUTPUT_WIDTH_ES2;
@@ -1918,7 +1918,7 @@ int __init isp_preview_init(struct device *dev)
 	params->gtable.greentable = greengamma_table;
 	params->gtable.redtable = redgamma_table;
 	params->wbal.dgain = FLR_WBAL_DGAIN;
-	if (omap_rev() > OMAP3430_REV_ES1_0) {
+	if ((cpu_is_omap34xx() && omap_rev_gt_1_0()) || cpu_is_omap3630()) {
 		params->wbal.coef0 = FLR_WBAL_COEF0_ES1;
 		params->wbal.coef1 = FLR_WBAL_COEF1_ES1;
 		params->wbal.coef2 = FLR_WBAL_COEF2_ES1;

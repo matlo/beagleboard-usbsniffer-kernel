@@ -847,7 +847,7 @@ int ispccdc_config_black_clamp(struct isp_ccdc_device *isp_ccdc,
 		isp_reg_writel(isp_ccdc->dev, bclamp_val,
 			       OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CLAMP);
 	} else {
-		if (omap_rev() < OMAP3430_REV_ES2_0)
+		if (cpu_is_omap34xx() && omap_rev_lt_2_0())
 			if (isp_ccdc->syncif_ipmod == YUV16 ||
 			    isp_ccdc->syncif_ipmod == YUV8 ||
 			    isp_reg_readl(isp_ccdc->dev, OMAP3_ISP_IOMEM_CCDC,
