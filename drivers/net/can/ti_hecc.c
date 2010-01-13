@@ -44,6 +44,7 @@
 #include <linux/skbuff.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -864,6 +865,9 @@ static int ti_hecc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No platform data\n");
 		goto probe_exit;
 	}
+
+	if(pdata->platform_init)
+		pdata->platform_init();
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {

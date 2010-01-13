@@ -773,6 +773,20 @@ static int __init am3517_evm_i2c_init(void)
  * HECC information
  */
 
+#define CAN_STB		230
+static void am3517_hecc_plat_init(void)
+{
+	int r;
+
+        r = gpio_request(CAN_STB, "can_stb");
+        if (r) {
+                printk(KERN_ERR "failed to get can_stb \n");
+		return;
+        }
+
+        gpio_direction_output(CAN_STB, 0);
+}
+
 static struct resource am3517_hecc_resources[] = {
         {
                 .start  = AM35XX_IPSS_HECC_BASE,
@@ -800,21 +814,11 @@ static struct ti_hecc_platform_data am3517_evm_hecc_pdata = {
         .mbx_offset            = AM35XX_HECC_MBOX_OFFSET,
         .int_line               = AM35XX_HECC_INT_LINE,
         .version                = AM35XX_HECC_VERSION,
+	.platform_init		= am3517_hecc_plat_init,
 };
 
-#define CAN_STB		230
 static void am3517_evm_hecc_init(struct ti_hecc_platform_data *pdata)
 {
-	int r;
-
-        r = gpio_request(CAN_STB, "can_stb");
-        if (r) {
-                printk(KERN_ERR "failed to get can_stb \n");
-		return;
-        }
-
-        gpio_direction_output(CAN_STB, 0);
-
         am3517_hecc_device.dev.platform_data = pdata;
         platform_device_register(&am3517_hecc_device);
 }

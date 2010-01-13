@@ -35,6 +35,7 @@ struct ti_hecc_platform_data {
 	u32 mbx_offset;
 	u32 int_line;
 	u32 version;
+	void (*platform_init) (void);
 };
 
 
