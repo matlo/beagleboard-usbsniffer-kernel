@@ -295,7 +295,7 @@ void __init omap3_cpuinfo(void)
 	 * and CPU class bits.
 	 */
 	if (cpu_is_omap3630()) {
-		strcpy(cpu_name, "OMAP3630");
+		strcpy(cpu_name, "OMAP3630/DM3730");
 	} else if (cpu_is_omap3505()) {
 		/*
 		 * AM35xx devices
