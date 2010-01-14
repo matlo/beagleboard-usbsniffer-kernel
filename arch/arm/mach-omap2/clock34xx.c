@@ -57,48 +57,6 @@
  */
 #define DPLL5_FREQ_FOR_USBHOST		120000000
 
-struct omap_opp omap3_mpu_rate_table[] = {
-	{0, 0, 0},
-	/*OPP1*/
-	{S125M, VDD1_OPP1, 0x1E},
-	/*OPP2*/
-	{S250M, VDD1_OPP2, 0x26},
-	/*OPP3*/
-	{S500M, VDD1_OPP3, 0x30},
-	/*OPP4*/
-	{S550M, VDD1_OPP4, 0x36},
-	/*OPP5*/
-	{S600M, VDD1_OPP5, 0x3C},
-	/*OPP6*/
-	{S720M, VDD1_OPP6, 0x3C},
-};
-
-struct omap_opp omap3_l3_rate_table[] = {
-	{0, 0, 0},
-	/*OPP1*/
-	{0, VDD2_OPP1, 0x1E},
-	/*OPP2*/
-	{S83M, VDD2_OPP2, 0x24},
-	/*OPP3*/
-	{S166M, VDD2_OPP3, 0x2C},
-};
-
-struct omap_opp omap3_dsp_rate_table[] = {
-	{0, 0, 0},
-	/*OPP1*/
-	{S90M, VDD1_OPP1, 0x1E},
-	/*OPP2*/
-	{S180M, VDD1_OPP2, 0x26},
-	/*OPP3*/
-	{S360M, VDD1_OPP3, 0x30},
-	/*OPP4*/
-	{S400M, VDD1_OPP4, 0x36},
-	/*OPP5*/
-	{S430M, VDD1_OPP5, 0x3C},
-	/*OPP5*/
-	{S520M, VDD1_OPP6, 0x3C},
-};
-
 /* needed by omap3_core_dpll_m2_set_rate() */
 struct clk *sdrc_ick_p, *arm_fck_p;
 
@@ -442,7 +400,7 @@ static int __init omap2_clk_arch_init(void)
 	if (err)
 		return -ENOENT;
 
-	if ((mpurate == S720M) && !omap3_has_720m()) {
+	if (!cpu_is_omap3630() && (mpurate == S720M) && !omap3_has_720m()) {
 		/*
 		 * Silicon doesn't support this rate.
 		 * Use the next highest.
@@ -455,7 +413,7 @@ static int __init omap2_clk_arch_init(void)
 	if (mpu_opps) {
 		opp_table = mpu_opps;
 
-		for (i = 1; opp_table[i].opp_id <= MAX_VDD1_OPP; i++) {
+		for (i = 1; opp_table[i].opp_id <= get_max_vdd1(); i++) {
 			if (opp_table[i].rate == mpurate) {
 				valid = 1;
 				break;
@@ -474,7 +432,7 @@ static int __init omap2_clk_arch_init(void)
 		printk(KERN_ERR "*** Unable to set MPU rate\n");
 
 	/* Select VDD2_OPP2, if VDD1_OPP1 is chosen */
-	if (opp == VDD1_OPP1) {
+	if (!cpu_is_omap3630() && (opp == VDD1_OPP1)) {
 		l3div = cm_read_mod_reg(CORE_MOD, CM_CLKSEL) &
 			OMAP3430_CLKSEL_L3_MASK;
 
@@ -486,12 +444,15 @@ static int __init omap2_clk_arch_init(void)
 	}
 
 	/* Get dsprate corresponding to the opp */
-	if ((cpu_is_omap3430() || cpu_is_omap3530() || cpu_is_omap3525())
+	if ((cpu_is_omap3430()
+			|| cpu_is_omap3530()
+			|| cpu_is_omap3525()
+			|| cpu_is_omap3630())
 		&& (dsp_opps)
-		&& (opp >= MIN_VDD1_OPP) && (opp <= MAX_VDD1_OPP)) {
+		&& (opp >= get_min_vdd1()) && (opp <= get_max_vdd1())) {
 		opp_table = dsp_opps;
 
-		for (i=0;  opp_table[i].opp_id <= MAX_VDD1_OPP; i++)
+		for (i=0;  opp_table[i].opp_id <= get_max_vdd1(); i++)
 			if (opp_table[i].opp_id == opp)
 				break;
 

@@ -33,6 +33,7 @@
 #include <plat/omap-pm.h>
 
 #include "prm.h"
+#include "omap3-opp.h"
 #include "smartreflex.h"
 #include "prm-regbits-34xx.h"
 
@@ -179,7 +180,7 @@ static u16 get_vdd1_opp(void)
 							mpu_opps == NULL)
 		return 0;
 
-	opp = get_opp(mpu_opps + MAX_VDD1_OPP, sr1.vdd_opp_clk->rate);
+	opp = get_opp(mpu_opps + get_max_vdd1(), sr1.vdd_opp_clk->rate);
 	return opp;
 }
 
@@ -191,7 +192,7 @@ static u16 get_vdd2_opp(void)
 							l3_opps == NULL)
 		return 0;
 
-	opp = get_opp(l3_opps + MAX_VDD2_OPP, sr2.vdd_opp_clk->rate);
+	opp = get_opp(l3_opps + get_max_vdd2(), sr2.vdd_opp_clk->rate);
 	return opp;
 }
 

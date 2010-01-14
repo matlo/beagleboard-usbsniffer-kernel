@@ -50,6 +50,7 @@
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 
+#include "omap3-opp.h"
 #include "smartreflex.h"
 #include "prm.h"
 #include "pm.h"
@@ -111,6 +112,86 @@ static struct prm_setup_vc prm_setup = {
 	.vdd1_onlp = 0x20,	/* 1.0v */
 	.vdd1_ret = 0x1e,	/* .975v */
 	.vdd1_off = 0x00,	/* 0.6v */
+};
+
+/*
+ * OPP tables for OMAP35x
+ */
+struct omap_opp omap35x_mpu_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1*/
+	{S125M, VDD1_OPP1, 0x1E},
+	/*OPP2*/
+	{S250M, VDD1_OPP2, 0x26},
+	/*OPP3*/
+	{S500M, VDD1_OPP3, 0x30},
+	/*OPP4*/
+	{S550M, VDD1_OPP4, 0x36},
+	/*OPP5*/
+	{S600M, VDD1_OPP5, 0x3C},
+	/*OPP6*/
+	{S720M, VDD1_OPP6, 0x3C},
+};
+
+struct omap_opp omap35x_dsp_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1*/
+	{S90M, VDD1_OPP1, 0x1E},
+	/*OPP2*/
+	{S180M, VDD1_OPP2, 0x26},
+	/*OPP3*/
+	{S360M, VDD1_OPP3, 0x30},
+	/*OPP4*/
+	{S400M, VDD1_OPP4, 0x36},
+	/*OPP5*/
+	{S430M, VDD1_OPP5, 0x3C},
+	/*OPP5*/
+	{S520M, VDD1_OPP6, 0x3C},
+};
+
+struct omap_opp omap35x_l3_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1*/
+	{0, VDD2_OPP1, 0x1E},
+	/*OPP2*/
+	{S83M, VDD2_OPP2, 0x24},
+	/*OPP3*/
+	{S166M, VDD2_OPP3, 0x2C},
+};
+
+/*
+ * OPP tables for OMAP37x
+ */
+struct omap_opp omap37x_mpu_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1 (OPP50)*/
+	{S300M, VDD1_OPP1, 0x1B},
+	/*OPP2 (OPP100)*/
+	{S600M, VDD1_OPP2, 0x28},
+	/*OPP3 (OPP120)*/
+	{S800M, VDD1_OPP3, 0x35},
+	/*OPP4 (OPPTM)*/
+	{S1000M, VDD1_OPP4, 0x39},
+};
+
+struct omap_opp omap37x_dsp_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1 (OPP50) */
+	{S260M, VDD1_OPP1, 0x1B},
+	/*OPP2 (OPP100) */
+	{S520M, VDD1_OPP2, 0x28},
+	/*OPP3 (OPP120) */
+	{S660M, VDD1_OPP3, 0x35},
+	/*OPP4 (OPPTM) */
+	{S875M, VDD1_OPP4, 0x39},
+};
+
+struct omap_opp omap37x_l3_rate_table[] = {
+	{0, 0, 0},
+	/*OPP1 (OPP50)  */
+	{S100M, VDD2_OPP1, 0x1B},
+	/*OPP2 (OPP100) */
+	{S200M, VDD2_OPP2, 0x2B},
 };
 
 static inline void omap3_per_save_context(void)
