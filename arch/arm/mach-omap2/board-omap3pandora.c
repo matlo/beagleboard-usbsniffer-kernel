@@ -371,7 +371,8 @@ static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 static void __init omap3pandora_init_irq(void)
 {
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params);
+			     mt46h32m32lf6_sdrc_params,
+			     NULL, NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 }
