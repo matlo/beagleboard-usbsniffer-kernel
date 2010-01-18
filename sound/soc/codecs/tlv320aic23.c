@@ -564,13 +564,12 @@ static int tlv320aic23_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		/* everything off except vref/vmid, */
-		tlv320aic23_write(codec, TLV320AIC23_PWR, reg | 0x0040);
+		/* Activate the digital interface */
+		tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x1);
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* everything off, dac mute, inactive */
+		/* Deactivate the digital interface */
 		tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0);
-		tlv320aic23_write(codec, TLV320AIC23_PWR, 0xffff);
 		break;
 	}
 	codec->bias_level = level;
@@ -614,7 +613,6 @@ static int tlv320aic23_suspend(struct platform_device *pdev,
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0);
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
