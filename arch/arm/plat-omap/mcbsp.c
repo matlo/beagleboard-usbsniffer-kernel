@@ -1254,7 +1254,7 @@ static inline void __devexit omap_additional_remove(struct device *dev)
 
 static inline void __devinit omap34xx_device_init(struct omap_mcbsp *mcbsp)
 {
-	mcbsp->dma_op_mode = MCBSP_DMA_MODE_ELEMENT;
+	mcbsp->dma_op_mode = MCBSP_DMA_MODE_THRESHOLD;
 	if (cpu_is_omap34xx()) {
 		mcbsp->max_tx_thres = max_thres(mcbsp);
 		mcbsp->max_rx_thres = max_thres(mcbsp);
