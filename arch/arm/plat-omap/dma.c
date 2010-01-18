@@ -708,6 +708,13 @@ static inline void omap2_enable_irq_lch(int lch)
 	spin_unlock_irqrestore(&dma_chan_lock, flags);
 }
 
+void omap_enable_irq_dma(int lch)
+{
+	omap2_enable_irq_lch(lch);
+	omap_enable_channel_irq(lch);
+}
+EXPORT_SYMBOL(omap_enable_irq_dma);
+
 int omap_request_dma(int dev_id, const char *dev_name,
 		     void (*callback)(int lch, u16 ch_status, void *data),
 		     void *data, int *dma_ch_out)

@@ -215,14 +215,19 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	spin_lock_irqsave(&prtd->lock, flags);
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+		/* clear dma channel first */
+		omap_clear_dma(prtd->dma_ch);
+
+		/* Reconfigure DMA transfer parameters
+		 * in order to come back from OFF mode
+		 */
+		omap_pcm_prepare(substream);
+		omap_enable_irq_dma(prtd->dma_ch);
+		/* fall through */
+	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		prtd->period_index = 0;
-		/* Configure McBSP internal buffer usage */
-		if (dma_data->set_threshold)
-			dma_data->set_threshold(substream);
-
 		omap_start_dma(prtd->dma_ch);
 		break;
 
