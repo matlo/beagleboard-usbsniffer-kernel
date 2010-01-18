@@ -455,6 +455,43 @@ int omap_mcbsp_request(unsigned int id)
 }
 EXPORT_SYMBOL(omap_mcbsp_request);
 
+void omap_mcbsp_disable_clks(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (mcbsp->clk_active && !mcbsp->tx_started && !mcbsp->rx_started) {
+		clk_disable(mcbsp->fclk);
+		clk_disable(mcbsp->iclk);
+		mcbsp->clk_active = 0;
+	}
+}
+EXPORT_SYMBOL(omap_mcbsp_disable_clks);
+
+
+void omap_mcbsp_enable_clks(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (!mcbsp->clk_active)	{
+		clk_enable(mcbsp->iclk);
+		clk_enable(mcbsp->fclk);
+		mcbsp->clk_active = 1;
+	}
+}
+EXPORT_SYMBOL(omap_mcbsp_enable_clks);
+
 void omap_mcbsp_free(unsigned int id)
 {
 	struct omap_mcbsp *mcbsp;
@@ -514,6 +551,11 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 
 	mcbsp->rx_word_length = (OMAP_MCBSP_READ(io_base, RCR1) >> 5) & 0x7;
 	mcbsp->tx_word_length = (OMAP_MCBSP_READ(io_base, XCR1) >> 5) & 0x7;
+
+	if (tx)
+		mcbsp->tx_started++;
+	if (rx)
+		mcbsp->rx_started++;
 
 	idle = !((OMAP_MCBSP_READ(io_base, SPCR2) |
 		  OMAP_MCBSP_READ(io_base, SPCR1)) & 1);
@@ -576,6 +618,11 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 
 	mcbsp = id_to_mcbsp_ptr(id);
 	io_base = mcbsp->io_base;
+
+	if (tx)
+		mcbsp->tx_started--;
+	if (rx)
+		mcbsp->rx_started--;
 
 	/* Reset transmitter */
 	tx &= 1;
@@ -1300,6 +1347,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 		goto err_fclk;
 	}
 
+	mcbsp->clk_active = 1;
 	mcbsp->pdata = pdata;
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;

@@ -410,6 +410,13 @@ struct omap_mcbsp {
 	struct omap_mcbsp_platform_data *pdata;
 	struct clk *iclk;
 	struct clk *fclk;
+	u8 clk_active;
+
+	/* Flags to check whether Tx and/or Rx have been started or not. */
+	/* They will be checked before disabling the clocks. */
+	u8 tx_started;
+	u8 rx_started;
+
 #ifdef CONFIG_ARCH_OMAP34XX
 	int dma_op_mode;
 	u16 max_tx_thres;
@@ -440,6 +447,8 @@ static inline int omap_mcbsp_get_dma_op_mode(unsigned int id) { return 0; }
 #endif
 int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);
+void omap_mcbsp_disable_clks(unsigned int id);
+void omap_mcbsp_enable_clks(unsigned int id);
 void omap_mcbsp_start(unsigned int id, int tx, int rx);
 void omap_mcbsp_stop(unsigned int id, int tx, int rx);
 void omap_mcbsp_xmit_word(unsigned int id, u32 word);
