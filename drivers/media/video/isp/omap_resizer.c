@@ -1037,10 +1037,18 @@ static void rsz_vbq_release(struct videobuf_queue *q,
 {
 	struct rsz_fh *fh = q->priv_data;
 	struct videobuf_dmabuf *dma = NULL;
+	struct vm_area_struct *vma;
 
 	dma = videobuf_to_dma(q->bufs[vb->i]);
-	videobuf_dma_unmap(q, dma);
-	videobuf_dma_free(dma);
+	vma = find_vma(current->mm, vb->baddr);
+	if ((vma) && (vma->vm_flags & VM_IO) && (vma->vm_pgoff)) {
+		vfree(dma->sglist);
+		dma->sglist = NULL;
+		dma->sglen = 0;
+	} else {
+		videobuf_dma_unmap(q, dma);
+		videobuf_dma_free(dma);
+	}
 	ispmmu_vunmap(fh->dev, fh->config->buf_address[vb->i]);
 	fh->config->buf_address[vb->i] = 0;
 
@@ -1122,7 +1130,7 @@ static int omap_videobuf_dma_init_user(struct videobuf_buffer *vb,
         dma->offset   = data & ~PAGE_MASK;
         dma->nr_pages = last-first+1;
 
-	dma->direction = PCI_DMA_FROMDEVICE;
+	dma->direction = PCI_DMA_BIDIRECTIONAL;
 	/*
 	 * Allocate array of sglen + 1, to add entry of extra page
 	 * for input buffer. Driver always uses 0th buffer as input buffer.
