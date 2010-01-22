@@ -47,11 +47,10 @@ static struct platform_device dummy_pdev = {
 
 static void __iomem *otg_base;
 static struct clk *otg_clk;
+struct device *dev = &dummy_pdev.dev;
 
 static void __init usb_musb_pm_init(void)
 {
-	struct device *dev = &dummy_pdev.dev;
-
 	if (!cpu_is_omap34xx())
 		return;
 
@@ -82,7 +81,18 @@ static void __init usb_musb_pm_init(void)
 
 void usb_musb_disable_autoidle(void)
 {
-	__raw_writel(0, otg_base + OTG_SYSCONFIG);
+	dev_set_name(dev, "musb_hdrc");
+	otg_clk = clk_get(dev, "ick");
+
+	if (otg_clk && clk_enable(otg_clk)) {
+		printk(KERN_WARNING
+			"%s: Unable to enable clocks for MUSB, "
+			"cannot disable autoidle.\n",  __func__);
+	} else {
+		__raw_writel(0, otg_base + OTG_SYSCONFIG);
+	}
+	if (otg_clk)
+		clk_disable(otg_clk);
 }
 
 #ifdef CONFIG_USB_MUSB_SOC
