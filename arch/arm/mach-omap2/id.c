@@ -184,6 +184,9 @@ void __init omap3_check_features(void)
 	if (status)
 		omap3_features |= OMAP3_HAS_720M;
 
+	if (cpu_is_omap3630())
+		omap3_features |= OMAP3_HAS_192MHZ_CLK;
+
 	/*
 	 * TODO: Get additional info (where applicable)
 	 *       e.g. Size of L2 cache.
@@ -350,6 +353,7 @@ void __init omap3_cpuinfo(void)
 	OMAP3_SHOW_FEATURE(neon);
 	OMAP3_SHOW_FEATURE(isp);
 	OMAP3_SHOW_FEATURE(720m);
+	OMAP3_SHOW_FEATURE(192mhz_clk);
 
 	printk(")\n");
 }

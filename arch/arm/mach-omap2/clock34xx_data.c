@@ -692,18 +692,24 @@ static struct clk dpll4_m2x2_ck = {
  * 96M_ALWON_FCLK (called "omap_96m_alwon_fck" below) and
  * CM_96K_(F)CLK.
  */
-static struct clk omap_96m_alwon_fck = {
-	.name		= "omap_96m_alwon_fck",
+
+/* Adding 192MHz Clock node needed by SGX */
+static struct clk omap_192_alwon_fck = {
+	.name		= "omap_192_alwon_fck",
 	.ops		= &clkops_null,
 	.parent		= &dpll4_m2x2_ck,
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk cm_96m_fck = {
-	.name		= "cm_96m_fck",
-	.ops		= &clkops_null,
-	.parent		= &omap_96m_alwon_fck,
-	.recalc		= &followparent_recalc,
+static const struct clksel_rate omap_96m_alwon_fck_rates[] = {
+	{ .div = 1, .val = 1, .flags = RATE_IN_36XX },
+	{ .div = 2, .val = 2, .flags = RATE_IN_36XX | DEFAULT_RATE },
+	{ .div = 0 }
+};
+
+static const struct clksel omap_96m_alwon_fck_clksel[] = {
+	{ .parent = &omap_192_alwon_fck, .rates = omap_96m_alwon_fck_rates },
+	{ .parent = NULL }
 };
 
 static const struct clksel_rate omap_96m_dpll_rates[] = {
@@ -714,6 +720,31 @@ static const struct clksel_rate omap_96m_dpll_rates[] = {
 static const struct clksel_rate omap_96m_sys_rates[] = {
 	{ .div = 1, .val = 1, .flags = RATE_IN_343X | DEFAULT_RATE },
 	{ .div = 0 }
+};
+
+static struct clk omap_96m_alwon_fck = {
+	.name		= "omap_96m_alwon_fck",
+	.ops		= &clkops_null,
+	.parent		= &dpll4_m2x2_ck,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk omap_96m_alwon_fck_3630 = {
+	.name		= "omap_96m_alwon_fck",
+	.parent		= &omap_192_alwon_fck,
+	.init		= &omap2_init_clksel_parent,
+	.ops		= &clkops_null,
+	.recalc		= &omap2_clksel_recalc,
+	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL),
+	.clksel_mask	= OMAP3630_CLKSEL_96M_MASK,
+	.clksel		= omap_96m_alwon_fck_clksel
+};
+
+static struct clk cm_96m_fck = {
+	.name		= "cm_96m_fck",
+	.ops		= &clkops_null,
+	.parent		= &omap_96m_alwon_fck,
+	.recalc		= &followparent_recalc,
 };
 
 static const struct clksel omap_96m_fck_clksel[] = {
@@ -870,7 +901,7 @@ static struct clk dpll4_m4x2_ck = {
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dpll4_m4_ck,
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
-	.enable_bit	= OMAP3430_PWRDN_CAM_SHIFT,
+	.enable_bit	= OMAP3430_PWRDN_DSS1_SHIFT,
 	.flags		= INVERT_ENABLE,
 	.clkdm_name	= "dpll4_clkdm",
 	.recalc		= &omap3_clkoutx2_recalc,
@@ -1308,9 +1339,21 @@ static struct clk gfx_cg2_ck = {
 /* SGX power domain - 3430ES2 only */
 
 static const struct clksel_rate sgx_core_rates[] = {
+	{ .div = 2, .val = 5, .flags = RATE_IN_36XX },
 	{ .div = 3, .val = 0, .flags = RATE_IN_343X | DEFAULT_RATE },
 	{ .div = 4, .val = 1, .flags = RATE_IN_343X },
 	{ .div = 6, .val = 2, .flags = RATE_IN_343X },
+	{ .div = 0 },
+};
+
+static const struct clksel_rate sgx_192m_rates[] = {
+	{ .div = 1,  .val = 4, .flags = RATE_IN_36XX | DEFAULT_RATE },
+	{ .div = 0 },
+};
+
+static const struct clksel_rate sgx_corex2_rates[] = {
+	{ .div = 3, .val = 6, .flags = RATE_IN_36XX | DEFAULT_RATE },
+	{ .div = 5, .val = 7, .flags = RATE_IN_36XX },
 	{ .div = 0 },
 };
 
@@ -1322,7 +1365,9 @@ static const struct clksel_rate sgx_96m_rates[] = {
 static const struct clksel sgx_clksel[] = {
 	{ .parent = &core_ck,	 .rates = sgx_core_rates },
 	{ .parent = &cm_96m_fck, .rates = sgx_96m_rates },
-	{ .parent = NULL },
+	{ .parent = &omap_192_alwon_fck, .rates = sgx_192m_rates },
+	{ .parent = &corex2_fck, .rates = sgx_corex2_rates },
+	{ .parent = NULL }
 };
 
 static struct clk sgx_fck = {
@@ -1336,6 +1381,8 @@ static struct clk sgx_fck = {
 	.clksel		= sgx_clksel,
 	.clkdm_name	= "sgx_clkdm",
 	.recalc		= &omap2_clksel_recalc,
+	.set_rate	= &omap2_clksel_set_rate,
+	.round_rate	= &omap2_clksel_round_rate
 };
 
 static struct clk sgx_ick = {
@@ -3241,6 +3288,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK("etb",	"emu_core_alwon_ck", &emu_core_alwon_ck, CK_3XXX),
 	CLK(NULL,	"dpll4_ck",	&dpll4_ck,	CK_3XXX),
 	CLK(NULL,	"dpll4_x2_ck",	&dpll4_x2_ck,	CK_3XXX),
+	CLK(NULL,	"omap_192_alwon_fck", &omap_192_alwon_fck, CK_36XX),
 	CLK(NULL,	"omap_96m_alwon_fck", &omap_96m_alwon_fck, CK_3XXX),
 	CLK(NULL,	"omap_96m_fck",	&omap_96m_fck,	CK_3XXX),
 	CLK(NULL,	"cm_96m_fck",	&cm_96m_fck,	CK_3XXX),
@@ -3493,6 +3541,8 @@ int __init omap2_clk_init(void)
 		dpll4_m6_ck = dpll4_m6_ck_34xx;
 	}
 
+	if (omap3_has_192mhz_clk())
+		omap_96m_alwon_fck = omap_96m_alwon_fck_3630;
 	clk_init(&omap2_clk_functions);
 
 	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks); c++)
