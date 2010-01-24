@@ -302,6 +302,14 @@ static int twl_mmc23_set_power(struct device *dev, int slot, int power_on, int v
 	if (c == NULL)
 		return -ENODEV;
 
+	if (mmc->slots[0].internal_clock) {
+		u32 reg;
+
+		reg = omap_ctrl_readl(control_devconf1_offset);
+		reg |= OMAP2_MMCSDIO2ADPCLKISEL;
+		omap_ctrl_writel(reg, control_devconf1_offset);
+	}
+
 	/* If we don't see a Vcc regulator, assume it's a fixed
 	 * voltage always-on regulator.
 	 */
@@ -322,14 +330,6 @@ static int twl_mmc23_set_power(struct device *dev, int slot, int power_on, int v
 	 * chips/cards need an interface voltage rail too.
 	 */
 	if (power_on) {
-		/* only MMC2 supports a CLKIN */
-		if (mmc->slots[0].internal_clock) {
-			u32 reg;
-
-			reg = omap_ctrl_readl(control_devconf1_offset);
-			reg |= OMAP2_MMCSDIO2ADPCLKISEL;
-			omap_ctrl_writel(reg, control_devconf1_offset);
-		}
 		ret = mmc_regulator_set_ocr(c->vcc, vdd);
 		/* enable interface voltage rail, if needed */
 		if (ret == 0 && c->vcc_aux) {
