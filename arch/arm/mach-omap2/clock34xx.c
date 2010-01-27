@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/limits.h>
 #include <linux/bitops.h>
+#include <linux/err.h>
+#include <linux/cpufreq.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -258,6 +260,38 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
  */
 #if defined(CONFIG_ARCH_OMAP3)
 
+#ifdef CONFIG_CPU_FREQ
+static struct cpufreq_frequency_table freq_table[MAX_VDD1_OPP+1];
+
+void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
+{
+	struct omap_opp *prcm;
+	int i = 0;
+
+	if (!mpu_opps)
+		return;
+
+	prcm = mpu_opps + MAX_VDD1_OPP;
+	for (; prcm->rate; prcm--) {
+		freq_table[i].index = i;
+		freq_table[i].frequency = prcm->rate / 1000;
+		i++;
+	}
+
+	if (i == 0) {
+		printk(KERN_WARNING "%s: failed to initialize frequency \
+								table\n",
+								__func__);
+		return;
+	}
+
+	freq_table[i].index = i;
+	freq_table[i].frequency = CPUFREQ_TABLE_END;
+
+	*table = &freq_table[0];
+}
+#endif
+
 struct clk_functions omap2_clk_functions = {
 	.clk_enable		= omap2_clk_enable,
 	.clk_disable		= omap2_clk_disable,
@@ -265,6 +299,9 @@ struct clk_functions omap2_clk_functions = {
 	.clk_set_rate		= omap2_clk_set_rate,
 	.clk_set_parent		= omap2_clk_set_parent,
 	.clk_disable_unused	= omap2_clk_disable_unused,
+#ifdef CONFIG_CPU_FREQ
+	.clk_init_cpufreq_table = omap2_clk_init_cpufreq_table,
+#endif
 };
 
 /*
@@ -349,5 +386,3 @@ arch_initcall(omap2_clk_arch_init);
 
 
 #endif
-
-
