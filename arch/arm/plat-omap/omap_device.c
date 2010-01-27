@@ -90,6 +90,8 @@
 #define IGNORE_WAKEUP_LAT		1
 
 
+#define OMAP_DEVICE_MAGIC 0xf00dcafe
+
 /* Private functions */
 
 /**
@@ -138,10 +140,22 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 			 "%llu nsec\n", od->pdev.name, od->pm_lat_level,
 			 act_lat);
 
-		WARN(act_lat > odpl->activate_lat, "omap_device: %s.%d: "
-		     "activate step %d took longer than expected (%llu > %d)\n",
-		     od->pdev.name, od->pdev.id, od->pm_lat_level,
-		     act_lat, odpl->activate_lat);
+		if (act_lat > odpl->activate_lat) {
+			odpl->activate_lat_worst = act_lat;
+			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
+				odpl->activate_lat = act_lat;
+				pr_warning("omap_device: %s.%d: new worst case "
+					   "activate latency %d: %llu\n",
+					   od->pdev.name, od->pdev.id,
+					   od->pm_lat_level, act_lat);
+			} else
+				pr_warning("omap_device: %s.%d: activate "
+					   "latency %d higher than exptected. "
+					   "(%llu > %d)\n",
+					   od->pdev.name, od->pdev.id,
+					   od->pm_lat_level, act_lat,
+					   odpl->activate_lat);
+		}
 
 		od->dev_wakeup_lat -= odpl->activate_lat;
 	}
@@ -194,10 +208,23 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 			 "%llu nsec\n", od->pdev.name, od->pm_lat_level,
 			 deact_lat);
 
-		WARN(deact_lat > odpl->deactivate_lat, "omap_device: %s.%d: "
-		     "deactivate step %d took longer than expected "
-		     "(%llu > %d)\n", od->pdev.name, od->pdev.id,
-		     od->pm_lat_level, deact_lat, odpl->deactivate_lat);
+		if (deact_lat > odpl->deactivate_lat) {
+			odpl->deactivate_lat_worst = deact_lat;
+			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
+				odpl->deactivate_lat = deact_lat;
+				pr_warning("omap_device: %s.%d: new worst case "
+					   "deactivate latency %d: %llu\n",
+					   od->pdev.name, od->pdev.id,
+					   od->pm_lat_level, deact_lat);
+			} else
+				pr_warning("omap_device: %s.%d: deactivate "
+					   "latency %d higher than exptected. "
+					   "(%llu > %d)\n",
+					   od->pdev.name, od->pdev.id,
+					   od->pm_lat_level, deact_lat,
+					   odpl->deactivate_lat);
+		}
+
 
 		od->dev_wakeup_lat += odpl->activate_lat;
 
@@ -378,6 +405,8 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	od->pm_lats = pm_lats;
 	od->pm_lats_cnt = pm_lats_cnt;
 
+	od->magic = OMAP_DEVICE_MAGIC;
+
 	ret = omap_device_register(od);
 	if (ret)
 		goto odbs_exit4;
@@ -437,8 +466,8 @@ int omap_device_enable(struct platform_device *pdev)
 	od = _find_by_pdev(pdev);
 
 	if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
-		WARN(1, "omap_device: %s.%d: omap_device_enable() called from "
-		     "invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -476,8 +505,8 @@ int omap_device_idle(struct platform_device *pdev)
 	od = _find_by_pdev(pdev);
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED) {
-		WARN(1, "omap_device: %s.%d: omap_device_idle() called from "
-		     "invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -509,8 +538,8 @@ int omap_device_shutdown(struct platform_device *pdev)
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED &&
 	    od->_state != OMAP_DEVICE_STATE_IDLE) {
-		WARN(1, "omap_device: %s.%d: omap_device_shutdown() called "
-		     "from invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -561,6 +590,18 @@ int omap_device_align_pm_lat(struct platform_device *pdev,
 		ret = _omap_device_activate(od, USE_WAKEUP_LAT);
 
 	return ret;
+}
+
+/**
+ * omap_device_is_valid()
+ * @od: struct omap_device *
+ *
+ * Return whether struct omap_device pointer @od points to a valid
+ * omap_device.
+ */
+bool omap_device_is_valid(struct omap_device *od)
+{
+	return (od && od->magic == OMAP_DEVICE_MAGIC);
 }
 
 /**
