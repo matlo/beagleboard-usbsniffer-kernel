@@ -53,6 +53,23 @@
 #include "pm.h"
 #include "omap3-opp.h"
 
+#ifdef CONFIG_PM
+static struct omap_opp * _omap35x_mpu_rate_table        = omap35x_mpu_rate_table;
+static struct omap_opp * _omap37x_mpu_rate_table        = omap37x_mpu_rate_table;
+static struct omap_opp * _omap35x_dsp_rate_table        = omap35x_dsp_rate_table;
+static struct omap_opp * _omap37x_dsp_rate_table        = omap37x_dsp_rate_table;
+static struct omap_opp * _omap35x_l3_rate_table         = omap35x_l3_rate_table;
+static struct omap_opp * _omap37x_l3_rate_table         = omap37x_l3_rate_table;
+#else   /* CONFIG_PM */
+static struct omap_opp * _omap35x_mpu_rate_table        = NULL;
+static struct omap_opp * _omap37x_mpu_rate_table        = NULL;
+static struct omap_opp * _omap35x_dsp_rate_table        = NULL;
+static struct omap_opp * _omap37x_dsp_rate_table        = NULL;
+static struct omap_opp * _omap35x_l3_rate_table         = NULL;
+static struct omap_opp * _omap37x_l3_rate_table         = NULL;
+#endif  /* CONFIG_PM */
+
+
 #define GPMC_CS0_BASE  0x60
 #define GPMC_CS_SIZE   0x30
 
@@ -303,12 +320,28 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	 * power switch and overcurrent detect
 	 */
 
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
+	if (cpu_is_omap3630()) {
+		/* Power on DVI, Serial and PWR led */ 
+ 		gpio_request(gpio + 1, "nDVI_PWR_EN");
+		gpio_direction_output(gpio + 1, 0);	
 
-	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+		/* Power on camera interface */
+		gpio_request(gpio + 2, "CAM_EN");
+		gpio_direction_output(gpio + 2, 1);
+
+		/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	}
+	else {
+		gpio_request(gpio + 1, "EHCI_nOC");
+		gpio_direction_input(gpio + 1);
+
+		/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	}
+
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -501,9 +534,22 @@ static struct platform_device keys_gpio = {
 
 static void __init omap3_beagle_init_irq(void)
 {
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-			     mt46h32m32lf6_sdrc_params, omap3_mpu_rate_table,
-			     omap3_dsp_rate_table, omap3_l3_rate_table);
+        if (cpu_is_omap3630())
+        {
+                omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+                                        NULL,
+                                        _omap37x_mpu_rate_table,
+                                        _omap37x_dsp_rate_table,
+                                        _omap37x_l3_rate_table);
+        }
+        else
+        {
+                omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+                                        NULL,
+                                        _omap35x_mpu_rate_table,
+                                        _omap35x_dsp_rate_table,
+                                        _omap35x_l3_rate_table);
+        }
 	omap_init_irq();
 #ifdef CONFIG_OMAP_32K_TIMER
 	omap2_gp_clockevent_set_gptimer(12);
