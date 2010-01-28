@@ -152,7 +152,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	return omap3_noncore_dpll_set_rate(clk, rate);
 }
 
-oid __init omap3_clk_lock_dpll5(void)
+void __init omap3_clk_lock_dpll5(void)
 {
 	struct clk *dpll5_clk;
 	struct clk *dpll5_m2_clk;
@@ -179,7 +179,7 @@ oid __init omap3_clk_lock_dpll5(void)
 #ifdef CONFIG_CPU_FREQ
 static struct cpufreq_frequency_table freq_table[MAX_VDD1_OPP+1];
 
-void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
+void omap3_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	struct omap_opp *prcm;
 	int i = 0;
