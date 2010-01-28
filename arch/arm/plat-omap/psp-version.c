@@ -26,6 +26,8 @@
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 
+#include <plat/cpu.h>
+
 #include "psp-version.h"
 
 static int init_psp_module(void);
@@ -39,10 +41,26 @@ static int show_version(char *page, char **start,
 			     int *eof, void *data)
 {
 	int len;
+	char cpu_name[16];
 
-	len = sprintf(page, TI_PSP_DEVICE \
+	/*
+	 * Identify current silicon
+	 */
+	if (cpu_is_omap3630()) {
+		strcpy(cpu_name, "AM37x/DM37x");
+	} else if (cpu_is_omap3505()) {
+		strcpy(cpu_name, "AM3505");
+	} else if (cpu_is_omap3517()) {
+		strcpy(cpu_name, "AM3517");
+	} else if (cpu_is_omap3430()) {
+		strcpy(cpu_name, "OMAP35x");
+	} else {
+		strcpy(cpu_name, "");
+	}
+
+	len = sprintf(page, "%s " \
 			" Linux PSP version " TI_PSP_VERSION \
-			" (" TI_PSP_PLATFORM ")\n");
+			" (" TI_PSP_PLATFORM ")\n", cpu_name);
 
 	return len;
 }
@@ -50,6 +68,7 @@ static int show_version(char *page, char **start,
 static int __init init_psp_module(void)
 {
 	int result = 0;
+	char cpu_name[16];
 
 	/*
 	 * Create the file "/proc/ti-psp-version"
@@ -63,9 +82,24 @@ static int __init init_psp_module(void)
 
 	if (vers_file != NULL) {
 
-		printk (KERN_INFO TI_PSP_DEVICE \
-					" Linux PSP version " TI_PSP_VERSION \
-					" (" TI_PSP_PLATFORM ")\n");
+		/*
+		 * Identify current silicon
+		 */
+		if (cpu_is_omap3630()) {
+			strcpy(cpu_name, "AM37x/DM37x");
+		} else if (cpu_is_omap3505()) {
+			strcpy(cpu_name, "AM3505");
+		} else if (cpu_is_omap3517()) {
+			strcpy(cpu_name, "AM3517");
+		} else if (cpu_is_omap3430()) {
+			strcpy(cpu_name, "OMAP35x");
+		} else {
+			strcpy(cpu_name, "");
+		}
+
+		printk (KERN_INFO "%s " \
+				" Linux PSP version " TI_PSP_VERSION \
+				" (" TI_PSP_PLATFORM ")\n", cpu_name);
 	}
 	else {
 		result = -ENOMEM;
