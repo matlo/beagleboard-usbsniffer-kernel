@@ -161,7 +161,7 @@ static DEFINE_MUTEX(dvfs_mutex);
 /**
  * opp_to_freq - convert OPPID to frequency (DEPRECATED)
  * @freq: return frequency back to caller
- * @opps: opp list
+ * @opp_type: OPP type where we need to look.
  * @opp_id: OPP ID we are searching for
  *
  * return 0 and freq is populated if we find the opp_id, else,
@@ -169,14 +169,14 @@ static DEFINE_MUTEX(dvfs_mutex);
  *
  * NOTE: this function is a standin for the timebeing as opp_id is deprecated
  */
-static int __deprecated opp_to_freq(unsigned long *freq,
-		const struct omap_opp *opps, u8 opp_id)
+static int __deprecated opp_to_freq(unsigned long *freq, enum opp_t opp_type,
+				 u8 opp_id)
 {
 	struct omap_opp *opp;
 
-	BUG_ON(!freq || !opps);
+	BUG_ON(!freq || opp_type >= OPP_TYPES_MAX);
 
-	opp = opp_find_by_opp_id(opps, opp_id);
+	opp = opp_find_by_opp_id(opp_type, opp_id);
 	if (!opp)
 		return -EINVAL;
 
@@ -188,20 +188,20 @@ static int __deprecated opp_to_freq(unsigned long *freq,
 /**
  * freq_to_opp - convert a frequency back to OPP ID (DEPRECATED)
  * @opp_id: opp ID returned back to caller
- * @opps: opp list
+ * @opp_type: OPP type where we need to look.
  * @freq: frequency we are searching for
  *
  * return 0 and opp_id is populated if we find the freq, else, we return error
  *
  * NOTE: this function is a standin for the timebeing as opp_id is deprecated
  */
-static int __deprecated freq_to_opp(u8 *opp_id, struct omap_opp *opps,
+static int __deprecated freq_to_opp(u8 *opp_id, enum opp_t opp_type,
 		unsigned long freq)
 {
 	struct omap_opp *opp;
 
-	BUG_ON(!opp_id || !opps);
-	opp = opp_find_freq_ceil(opps, &freq);
+	BUG_ON(opp_type >= OPP_TYPES_MAX);
+	opp = opp_find_freq_ceil(opp_type, &freq);
 	if (IS_ERR(opp))
 		return -EINVAL;
 	*opp_id = opp_get_opp_id(opp);
@@ -218,9 +218,6 @@ void init_opp(struct shared_resource *resp)
 	u8 opp_id;
 	resp->no_of_users = 0;
 
-	if (!mpu_opps || !dsp_opps || !l3_opps)
-		return;
-
 	/* Initialize the current level of the OPP resource
 	* to the  opp set by u-boot.
 	*/
@@ -228,14 +225,14 @@ void init_opp(struct shared_resource *resp)
 		vdd1_resp = resp;
 		dpll1_clk = clk_get(NULL, "dpll1_ck");
 		dpll2_clk = clk_get(NULL, "dpll2_ck");
-		ret = freq_to_opp(&opp_id, mpu_opps, dpll1_clk->rate);
+		ret = freq_to_opp(&opp_id, OPP_MPU, dpll1_clk->rate);
 		BUG_ON(ret); /* TBD Cleanup handling */
 		curr_vdd1_opp = opp_id;
 	} else if (strcmp(resp->name, "vdd2_opp") == 0) {
 		vdd2_resp = resp;
 		dpll3_clk = clk_get(NULL, "dpll3_m2_ck");
 		l3_clk = clk_get(NULL, "l3_ick");
-		ret = freq_to_opp(&opp_id, l3_opps, l3_clk->rate);
+		ret = freq_to_opp(&opp_id, OPP_L3, l3_clk->rate);
 		BUG_ON(ret); /* TBD Cleanup handling */
 		curr_vdd2_opp = opp_id;
 	}
@@ -288,13 +285,13 @@ static int program_opp_freq(int res, int target_level, int current_level)
 
 	/* Check if I can actually switch or not */
 	if (res == VDD1_OPP) {
-		ret = opp_to_freq(&mpu_freq, mpu_opps, target_level);
-		ret |= opp_to_freq(&dsp_freq, dsp_opps, target_level);
+		ret = opp_to_freq(&mpu_freq, OPP_MPU, target_level);
+		ret |= opp_to_freq(&dsp_freq, OPP_DSP, target_level);
 #ifndef CONFIG_CPU_FREQ
-		ret |= opp_to_freq(&mpu_cur_freq, mpu_opps, current_level);
+		ret |= opp_to_freq(&mpu_cur_freq, OPP_MPU, current_level);
 #endif
 	} else {
-		ret = opp_to_freq(&l3_freq, l3_opps, target_level);
+		ret = opp_to_freq(&l3_freq, OPP_L3, target_level);
 	}
 	/* we would have caught all bad levels earlier.. */
 	if (unlikely(ret))
@@ -329,7 +326,7 @@ static int program_opp_freq(int res, int target_level, int current_level)
 	return target_level;
 }
 
-static int program_opp(int res, struct omap_opp *opp, int target_level,
+static int program_opp(int res, enum opp_t opp_type, int target_level,
 		int current_level)
 {
 	int i, ret = 0, raise;
@@ -342,7 +339,7 @@ static int program_opp(int res, struct omap_opp *opp, int target_level,
 #endif
 
 	/* See if have a freq associated, if not, invalid opp */
-	ret = opp_to_freq(&freq, opp, target_level);
+	ret = opp_to_freq(&freq, opp_type, target_level);
 	if (unlikely(ret))
 		return ret;
 
@@ -365,13 +362,13 @@ static int program_opp(int res, struct omap_opp *opp, int target_level,
 			 * transitioning from good to good OPP
 			 * none of the following should fail..
 			 */
-			oppx = opp_find_freq_exact(opp, freq, true);
+			oppx = opp_find_freq_exact(opp_type, freq, true);
 			BUG_ON(IS_ERR(oppx));
 			uvdc = opp_get_voltage(oppx);
 			vt = omap_twl_uv_to_vsel(uvdc);
 
-			BUG_ON(opp_to_freq(&freq, opp, current_level));
-			oppx = opp_find_freq_exact(opp, freq, true);
+			BUG_ON(opp_to_freq(&freq, opp_type, current_level));
+			oppx = opp_find_freq_exact(opp_type, freq, true);
 			BUG_ON(IS_ERR(oppx));
 			uvdc = opp_get_voltage(oppx);
 			vc = omap_twl_uv_to_vsel(uvdc);
@@ -404,15 +401,12 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 	if (resp->curr_level == target_level)
 		return 0;
 
-	if (!mpu_opps || !dsp_opps || !l3_opps)
-		return 0;
-
 	/* Check if I can actually switch or not */
 	if (res == VDD1_OPP) {
-		ret = opp_to_freq(&mpu_freq, mpu_opps, target_level);
-		ret |= opp_to_freq(&mpu_old_freq, mpu_opps, resp->curr_level);
+		ret = opp_to_freq(&mpu_freq, OPP_MPU, target_level);
+		ret |= opp_to_freq(&mpu_old_freq, OPP_MPU, resp->curr_level);
 	} else {
-		ret = opp_to_freq(&l3_freq, l3_opps, target_level);
+		ret = opp_to_freq(&l3_freq, OPP_L3, target_level);
 	}
 	if (ret)
 		return ret;
@@ -431,7 +425,7 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 		/* Send pre notification to CPUFreq */
 		cpufreq_notify_transition(&freqs_notify, CPUFREQ_PRECHANGE);
 #endif
-		resp->curr_level = program_opp(res, mpu_opps, target_level,
+		resp->curr_level = program_opp(res, OPP_MPU, target_level,
 			resp->curr_level);
 #ifdef CONFIG_CPU_FREQ
 		/* Send a post notification to CPUFreq */
@@ -442,7 +436,7 @@ int resource_set_opp_level(int res, u32 target_level, int flags)
 			mutex_unlock(&dvfs_mutex);
 			return 0;
 		}
-		resp->curr_level = program_opp(res, l3_opps, target_level,
+		resp->curr_level = program_opp(res, OPP_L3, target_level,
 			resp->curr_level);
 	}
 	mutex_unlock(&dvfs_mutex);
@@ -474,17 +468,17 @@ int set_opp(struct shared_resource *resp, u32 target_level)
 		req_l3_freq = (target_level * 1000)/4;
 
 		/* Do I have a best match? */
-		oppx = opp_find_freq_ceil(l3_opps, &req_l3_freq);
+		oppx = opp_find_freq_ceil(OPP_L3, &req_l3_freq);
 		if (IS_ERR(oppx)) {
 			/* Give me the best we got */
 			req_l3_freq = ULONG_MAX;
-			oppx = opp_find_freq_floor(l3_opps, &req_l3_freq);
+			oppx = opp_find_freq_floor(OPP_L3, &req_l3_freq);
 		}
 
 		/* uh uh.. no OPPs?? */
 		BUG_ON(IS_ERR(oppx));
 
-		ret = freq_to_opp((u8 *)&target_level, l3_opps, req_l3_freq);
+		ret = freq_to_opp((u8 *)&target_level, OPP_L3, req_l3_freq);
 		/* we dont expect this to fail */
 		BUG_ON(ret);
 
@@ -503,9 +497,9 @@ int validate_opp(struct shared_resource *resp, u32 target_level)
 {
 	unsigned long x;
 	if (strcmp(resp->name, "mpu_freq") == 0)
-		return opp_to_freq(&x, mpu_opps, target_level);
+		return opp_to_freq(&x, OPP_MPU, target_level);
 	else if (strcmp(resp->name, "dsp_freq") == 0)
-		return opp_to_freq(&x, dsp_opps, target_level);
+		return opp_to_freq(&x, OPP_DSP, target_level);
 	return 0;
 }
 
@@ -519,19 +513,16 @@ void init_freq(struct shared_resource *resp)
 	unsigned long freq;
 	resp->no_of_users = 0;
 
-	if (!mpu_opps || !dsp_opps)
-		return;
-
 	linked_res_name = (char *)resp->resource_data;
 	/* Initialize the current level of the Freq resource
 	* to the frequency set by u-boot.
 	*/
 	if (strcmp(resp->name, "mpu_freq") == 0)
 		/* MPU freq in Mhz */
-		ret = opp_to_freq(&freq, mpu_opps, curr_vdd1_opp);
+		ret = opp_to_freq(&freq, OPP_MPU, curr_vdd1_opp);
 	else if (strcmp(resp->name, "dsp_freq") == 0)
 		/* DSP freq in Mhz */
-		ret = opp_to_freq(&freq, dsp_opps, curr_vdd1_opp);
+		ret = opp_to_freq(&freq, OPP_DSP, curr_vdd1_opp);
 	BUG_ON(ret);
 
 	resp->curr_level = freq;
@@ -543,16 +534,13 @@ int set_freq(struct shared_resource *resp, u32 target_level)
 	u8 vdd1_opp;
 	int ret = -EINVAL;
 
-	if (!mpu_opps || !dsp_opps)
-		return 0;
-
 	if (strcmp(resp->name, "mpu_freq") == 0) {
-		ret = freq_to_opp(&vdd1_opp, mpu_opps, target_level);
+		ret = freq_to_opp(&vdd1_opp, OPP_MPU, target_level);
 		if (!ret)
 			ret = resource_request("vdd1_opp", &dummy_mpu_dev,
 					vdd1_opp);
 	} else if (strcmp(resp->name, "dsp_freq") == 0) {
-		ret = freq_to_opp(&vdd1_opp, dsp_opps, target_level);
+		ret = freq_to_opp(&vdd1_opp, OPP_DSP, target_level);
 		if (!ret)
 			ret = resource_request("vdd1_opp", &dummy_dsp_dev,
 					vdd1_opp);
@@ -566,8 +554,8 @@ int validate_freq(struct shared_resource *resp, u32 target_level)
 {
 	u8 x;
 	if (strcmp(resp->name, "mpu_freq") == 0)
-		return freq_to_opp(&x, mpu_opps, target_level);
+		return freq_to_opp(&x, OPP_MPU, target_level);
 	else if (strcmp(resp->name, "dsp_freq") == 0)
-		return freq_to_opp(&x, dsp_opps, target_level);
+		return freq_to_opp(&x, OPP_DSP, target_level);
 	return 0;
 }
