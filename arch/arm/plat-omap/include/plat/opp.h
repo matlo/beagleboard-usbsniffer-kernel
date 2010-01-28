@@ -1,8 +1,9 @@
 /*
  * OMAP OPP Interface
  *
- * Copyright (C) 2009 Texas Instruments Incorporated.
+ * Copyright (C) 2009-2010 Texas Instruments Incorporated.
  *	Nishanth Menon
+ *	Romit Dasgupta <romit@ti.com>
  * Copyright (C) 2009 Deep Root Systems, LLC.
  *	Kevin Hilman
  *
@@ -16,9 +17,16 @@
 #include <linux/err.h>
 #include <linux/cpufreq.h>
 
-extern struct omap_opp *mpu_opps;
-extern struct omap_opp *dsp_opps;
-extern struct omap_opp *l3_opps;
+#ifdef CONFIG_ARCH_OMAP3
+enum opp_t {
+	OPP_MPU,
+	OPP_L3,
+	OPP_DSP,
+	OPP_TYPES_MAX
+};
+#else
+#error "You need to populate the OPP types for OMAP chip type."
+#endif
 
 
 /**
@@ -81,16 +89,16 @@ unsigned long opp_get_freq(const struct omap_opp *opp);
 /**
  * opp_get_opp_count() - Get number of opps enabled in the opp list
  * @num:	returns the number of opps
- * @oppl:	opp list
+ * @opp_type:	OPP type we want to count
  *
  * This functions returns the number of opps if there are any OPPs enabled,
  * else returns corresponding error value.
  */
-int opp_get_opp_count(struct omap_opp *oppl);
+int opp_get_opp_count(enum opp_t opp_type);
 
 /**
  * opp_find_freq_exact() - search for an exact frequency
- * @oppl:	OPP list
+ * @opp_type:	OPP type we want to search in.
  * @freq:	frequency to search for
  * @enabled:	enabled/disabled OPP to search for
  *
@@ -102,14 +110,14 @@ int opp_get_opp_count(struct omap_opp *oppl);
  * for exact matching frequency and is enabled. if true, the match is for exact
  * frequency which is disabled.
  */
-struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
+struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
 				     unsigned long freq, bool enabled);
 
 /* XXX This documentation needs fixing */
 
 /**
  * opp_find_freq_floor() - Search for an rounded freq
- * @oppl:	Starting list
+ * @opp_type:	OPP type we want to search in
  * @freq:	Start frequency
  *
  * Search for the lower *enabled* OPP from a starting freq
@@ -138,14 +146,13 @@ struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
  * NOTE: if we set freq as ULONG_MAX and search low, we get the
  * highest enabled frequency
  */
-struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl,
-				     unsigned long *freq);
+struct omap_opp *opp_find_freq_floor(enum opp_t opp_type, unsigned long *freq);
 
 /* XXX This documentation needs fixing */
 
 /**
  * opp_find_freq_ceil() - Search for an rounded freq
- * @oppl:	Starting list
+ * @opp_type:	OPP type where we want to search in
  * @freq:	Start frequency
  *
  * Search for the higher *enabled* OPP from a starting freq
@@ -171,40 +178,32 @@ struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl,
  *		freq++; * for next higher match *
  *	}
  */
-struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq);
+struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq);
 
 
 /**
  * opp_init_list() - Initialize an opp list from the opp definitions
+ * @opp_type:	OPP type to initialize this list for.
  * @opp_defs:	Initial opp definitions to create the list.
  *
- * This function creates a list of opp definitions and returns a handle.
+ * This function creates a list of opp definitions and returns status.
  * This list can be used to further validation/search/modifications. New
  * opp entries can be added to this list by using opp_add().
  *
- * In the case of error, ERR_PTR is returned to the caller and should be
- * appropriately handled with IS_ERR.
+ * In the case of error, suitable error code is returned.
  */
-struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs);
+int  __init opp_init_list(enum opp_t opp_type,
+			 const struct omap_opp_def *opp_defs);
 
 /**
  * opp_add()  - Add an OPP table from a table definitions
- * @oppl:	List to add the OPP to
+ * @opp_type:	OPP type under which we want to add our new OPP.
  * @opp_def:	omap_opp_def to describe the OPP which we want to add to list.
  *
- * This function adds an opp definition to the opp list and returns
- * a handle representing the new OPP list. This handle is then used for further
- * validation, search, modification operations on the OPP list.
+ * This function adds an opp definition to the opp list and returns status.
  *
- * This function returns the pointer to the allocated list through oppl if
- * success, else corresponding ERR_PTR value. Caller should NOT free the oppl.
- * opps_defs can be freed after use.
- *
- * NOTE: caller should assume that on success, oppl is probably populated with
- * a new handle and the new handle should be used for further referencing
  */
-struct omap_opp *opp_add(struct omap_opp *oppl,
-			 const struct omap_opp_def *opp_def);
+int opp_add(enum opp_t opp_type, const struct omap_opp_def *opp_def);
 
 /**
  * opp_enable() - Enable a specific OPP
@@ -230,11 +229,11 @@ int opp_enable(struct omap_opp *opp);
  */
 int opp_disable(struct omap_opp *opp);
 
-struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
+struct omap_opp * __deprecated opp_find_by_opp_id(enum opp_t opp_type,
 						  u8 opp_id);
 u8 __deprecated opp_get_opp_id(struct omap_opp *opp);
 
-void opp_init_cpufreq_table(struct omap_opp *opps,
+void opp_init_cpufreq_table(enum opp_t opp_type,
 			    struct cpufreq_frequency_table **table);
 #else
 static inline unsigned long opp_get_voltage(const struct omap_opp *opp)

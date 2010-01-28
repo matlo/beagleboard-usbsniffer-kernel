@@ -87,6 +87,9 @@ static int omap_target(struct cpufreq_policy *policy,
 #ifdef CONFIG_ARCH_OMAP1
 	struct cpufreq_freqs freqs;
 #endif
+#if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
+	unsigned long freq = target_freq * 1000;
+#endif
 	int ret = 0;
 
 	/* Ensure desired rate is within allowed range.  Some govenors
@@ -111,11 +114,8 @@ static int omap_target(struct cpufreq_policy *policy,
 	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 #elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
-	if (mpu_opps) {
-		unsigned long freq = target_freq * 1000;
-		if (!IS_ERR(opp_find_freq_ceil(mpu_opps, &freq)))
-			omap_pm_cpu_set_freq(freq);
-	}
+	if (opp_find_freq_ceil(OPP_MPU, &freq))
+		omap_pm_cpu_set_freq(freq);
 #endif
 	return ret;
 }
@@ -136,7 +136,7 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	if (!cpu_is_omap34xx())
 		clk_init_cpufreq_table(&freq_table);
 	else
-		opp_init_cpufreq_table(mpu_opps, &freq_table);
+		opp_init_cpufreq_table(OPP_MPU, &freq_table);
 
 	if (freq_table) {
 		result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
