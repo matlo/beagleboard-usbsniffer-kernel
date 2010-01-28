@@ -111,7 +111,6 @@ static struct omap_opp_def __initdata omap36xx_dsp_rate_table[] = {
 
 void __init omap3_pm_init_opp_table(void)
 {
-	int i;
 	struct omap_opp_def **omap3_opp_def_list;
 	struct omap_opp_def *omap34xx_opp_def_list[] = {
 		omap34xx_mpu_rate_table,
@@ -123,18 +122,12 @@ void __init omap3_pm_init_opp_table(void)
 		omap36xx_l3_rate_table,
 		omap36xx_dsp_rate_table
 	};
-	struct omap_opp **omap3_rate_tables[] = {
-		&mpu_opps,
-		&l3_opps,
-		&dsp_opps
-	};
 
 	omap3_opp_def_list = cpu_is_omap3630() ? omap36xx_opp_def_list :
 				omap34xx_opp_def_list;
-	for (i = 0; i < ARRAY_SIZE(omap3_rate_tables); i++) {
-		*omap3_rate_tables[i] = opp_init_list(omap3_opp_def_list[i]);
-		/* We dont want half configured system at the moment */
-		BUG_ON(IS_ERR(omap3_rate_tables[i]));
-	}
+
+	BUG_ON(opp_init_list(OPP_MPU, omap3_opp_def_list[0]));
+	BUG_ON(opp_init_list(OPP_L3, omap3_opp_def_list[1]));
+	BUG_ON(opp_init_list(OPP_DSP, omap3_opp_def_list[2]));
 }
 

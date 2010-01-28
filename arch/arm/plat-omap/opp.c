@@ -1,8 +1,9 @@
 /*
  * OMAP OPP Interface
  *
- * Copyright (C) 2009 Texas Instruments Incorporated.
+ * Copyright (C) 2009-2010 Texas Instruments Incorporated.
  *	Nishanth Menon
+ *	Romit Dasgupta <romit@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -39,6 +40,11 @@ struct omap_opp {
 };
 
 /*
+ * This maintains pointers to the start of each OPP array.
+ */
+
+static struct omap_opp *_opp_list[OPP_TYPES_MAX];
+/*
  * DEPRECATED: Meant to detect end of opp array
  * This is meant to help co-exist with current SRF etc
  * TODO: REMOVE!
@@ -65,18 +71,23 @@ unsigned long opp_get_freq(const struct omap_opp *opp)
 
 /**
  * opp_find_by_opp_id - look up OPP by OPP ID (deprecated)
- * @opps: pointer to an array of struct omap_opp
+ * @opp_type: OPP type where we want the look up to happen.
  *
  * Returns the struct omap_opp pointer corresponding to the given OPP
  * ID @opp_id, or returns NULL on error.
  */
-struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
+struct omap_opp * __deprecated opp_find_by_opp_id(enum opp_t opp_type,
 						  u8 opp_id)
 {
+	struct omap_opp *opps;
 	int i = 0;
 
-	if (!opps || !opp_id)
-		return NULL;
+	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_id))
+		return ERR_PTR(-EINVAL);
+	opps = _opp_list[opp_type];
+
+	if (!opps)
+		return ERR_PTR(-ENOENT);
 
 	while (!OPP_TERM(&opps[i])) {
 		if (opps[i].enabled && (opps[i].opp_id == opp_id))
@@ -85,7 +96,7 @@ struct omap_opp * __deprecated opp_find_by_opp_id(struct omap_opp *opps,
 		i++;
 	}
 
-	return NULL;
+	return ERR_PTR(-ENOENT);
 }
 
 u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
@@ -93,14 +104,20 @@ u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
 	return opp->opp_id;
 }
 
-int opp_get_opp_count(struct omap_opp *oppl)
+int opp_get_opp_count(enum opp_t opp_type)
 {
 	u8 n = 0;
+	struct omap_opp *oppl;
 
-	if (unlikely(!oppl || IS_ERR(oppl))) {
+	if (unlikely(opp_type >= OPP_TYPES_MAX)) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return -EINVAL;
 	}
+
+	oppl = _opp_list[opp_type];
+	if (!oppl)
+		return -ENOENT;
+
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled)
 			n++;
@@ -109,13 +126,20 @@ int opp_get_opp_count(struct omap_opp *oppl)
 	return n;
 }
 
-struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
+struct omap_opp *opp_find_freq_exact(enum opp_t opp_type,
 				     unsigned long freq, bool enabled)
 {
-	if (unlikely(!oppl || IS_ERR(oppl))) {
+	struct omap_opp *oppl;
+
+	if (unlikely(opp_type >= OPP_TYPES_MAX)) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
+
+	oppl = _opp_list[opp_type];
+
+	if (!oppl)
+		return ERR_PTR(-ENOENT);
 
 	while (!OPP_TERM(oppl)) {
 		if ((oppl->rate == freq) && (oppl->enabled == enabled))
@@ -126,17 +150,24 @@ struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
 	return OPP_TERM(oppl) ? ERR_PTR(-ENOENT) : oppl;
 }
 
-struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq)
+struct omap_opp *opp_find_freq_ceil(enum opp_t opp_type, unsigned long *freq)
 {
-	if (unlikely(!oppl || IS_ERR(oppl) || !freq || IS_ERR(freq))) {
+	struct omap_opp *oppl;
+
+	if (unlikely(opp_type >= OPP_TYPES_MAX || !freq ||
+		 IS_ERR(freq))) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
+	oppl = _opp_list[opp_type];
+
+	if (!oppl)
+		return ERR_PTR(-ENOENT);
+
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled && oppl->rate >= *freq)
 			break;
-
 		oppl++;
 	}
 
@@ -148,23 +179,27 @@ struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl, unsigned long *freq)
 	return oppl;
 }
 
-struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl, unsigned long *freq)
+struct omap_opp *opp_find_freq_floor(enum opp_t opp_type, unsigned long *freq)
 {
-	struct omap_opp *prev_opp = oppl;
+	struct omap_opp *prev_opp, *oppl;
 
-	if (unlikely(!oppl || IS_ERR(oppl) || !freq || IS_ERR(freq))) {
+	if (unlikely(opp_type >= OPP_TYPES_MAX || !freq ||
+		 IS_ERR(freq))) {
 		pr_err("%s: Invalid parameters being passed\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
+	oppl = _opp_list[opp_type];
 
+	if (!oppl)
+		return ERR_PTR(-ENOENT);
+
+	prev_opp = oppl;
 	while (!OPP_TERM(oppl)) {
 		if (oppl->enabled) {
 			if (oppl->rate > *freq)
 				break;
-
 			prev_opp = oppl;
 		}
-
 		oppl++;
 	}
 
@@ -185,18 +220,23 @@ static void omap_opp_populate(struct omap_opp *opp,
 	opp->u_volt = opp_def->u_volt;
 }
 
-struct omap_opp *opp_add(struct omap_opp *oppl,
-			 const struct omap_opp_def *opp_def)
+int opp_add(enum opp_t opp_type, const struct omap_opp_def *opp_def)
 {
-	struct omap_opp *opp, *oppt, *oppr;
+	struct omap_opp *opp, *oppt, *oppr, *oppl;
 	u8 n, i, ins;
 
-	if (unlikely(!oppl || IS_ERR(oppl) || !opp_def || IS_ERR(opp_def))) {
+	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_def ||
+			 IS_ERR(opp_def))) {
 		pr_err("%s: Invalid params being passed\n", __func__);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	n = 0;
+	oppl = _opp_list[opp_type];
+
+	if (!oppl)
+		return -ENOENT;
+
 	opp = oppl;
 	while (!OPP_TERM(opp)) {
 		n++;
@@ -210,11 +250,11 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 	oppr = kzalloc(sizeof(struct omap_opp) * (n + 2), GFP_KERNEL);
 	if (!oppr) {
 		pr_err("%s: No memory for new opp array\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	/* Simple insertion sort */
-	opp = oppl;
+	opp = _opp_list[opp_type];
 	oppt = oppr;
 	ins = 0;
 	i = 1;
@@ -238,23 +278,27 @@ struct omap_opp *opp_add(struct omap_opp *oppl,
 		oppt++;
 	}
 
+	_opp_list[opp_type] = oppr;
+
 	/* Terminator implicitly added by kzalloc() */
 
 	/* Free the old list */
 	kfree(oppl);
 
-	return oppr;
+	return 0;
 }
 
-struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
+int __init opp_init_list(enum opp_t opp_type,
+				 const struct omap_opp_def *opp_defs)
 {
 	struct omap_opp_def *t = (struct omap_opp_def *)opp_defs;
-	struct omap_opp *opp, *oppl;
+	struct omap_opp *oppl;
 	u8 n = 0, i = 1;
 
-	if (unlikely(!opp_defs || IS_ERR(opp_defs))) {
+	if (unlikely(opp_type >= OPP_TYPES_MAX || !opp_defs ||
+			 IS_ERR(opp_defs))) {
 		pr_err("%s: Invalid params being passed\n", __func__);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 	/* Grab a count */
 	while (t->enabled || t->freq || t->u_volt) {
@@ -269,22 +313,23 @@ struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 	oppl = kzalloc(sizeof(struct omap_opp) * (n + 1), GFP_KERNEL);
 	if (!oppl) {
 		pr_err("%s: No memory for opp array\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
-	opp = oppl;
+
+	_opp_list[opp_type] = oppl;
 	while (n) {
-		omap_opp_populate(opp, opp_defs);
-		opp->opp_id = i;
+		omap_opp_populate(oppl, opp_defs);
+		oppl->opp_id = i;
 		n--;
-		opp++;
+		oppl++;
 		opp_defs++;
 		i++;
 	}
 
 	/* Terminator implicitly added by kzalloc() */
 
-	return oppl;
+	return 0;
 }
 
 int opp_enable(struct omap_opp *opp)
@@ -308,20 +353,21 @@ int opp_disable(struct omap_opp *opp)
 }
 
 /* XXX document */
-void opp_init_cpufreq_table(struct omap_opp *opps,
+void opp_init_cpufreq_table(enum opp_t opp_type,
 			    struct cpufreq_frequency_table **table)
 {
 	int i = 0, j;
 	int opp_num;
 	struct cpufreq_frequency_table *freq_table;
+	struct omap_opp *opp;
 
-	if (!opps) {
+	if (opp_type >= OPP_TYPES_MAX) {
 		pr_warning("%s: failed to initialize frequency"
 				"table\n", __func__);
 		return;
 	}
 
-	opp_num = opp_get_opp_count(opps);
+	opp_num = opp_get_opp_count(opp_type);
 	if (opp_num < 0) {
 		pr_err("%s: no opp table?\n", __func__);
 		return;
@@ -335,14 +381,15 @@ void opp_init_cpufreq_table(struct omap_opp *opps,
 		return;
 	}
 
+	opp = _opp_list[opp_type];
+	opp += opp_num;
 	for (j = opp_num; j >= 0; j--) {
-		struct omap_opp *opp = &opps[j];
-
 		if (opp->enabled) {
 			freq_table[i].index = i;
 			freq_table[i].frequency = opp->rate / 1000;
 			i++;
 		}
+		opp--;
 	}
 
 	freq_table[i].index = i;
