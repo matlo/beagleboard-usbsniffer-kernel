@@ -42,8 +42,15 @@ static struct omap_opp_def __initdata omap34xx_mpu_rate_table[] = {
 };
 
 static struct omap_opp_def __initdata omap34xx_l3_rate_table[] = {
-	/* OPP1 */
-	OMAP_OPP_DEF(false, 0, 975000),
+	/*
+	 * OPP1 - 41.5 MHz is disabled because: The voltage for that OPP is
+	 * almost the same than the one at 83MHz thus providing very little
+	 * gain for the power point of view. In term of energy it will even
+	 * increase the consumption due to the very negative performance
+	 * impact that frequency will do to the MPU and the whole system in
+	 * general.
+	 */
+	OMAP_OPP_DEF(false, 41500000, 975000),
 	/* OPP2 */
 	OMAP_OPP_DEF(true, 83000000, 1050000),
 	/* OPP3 */
