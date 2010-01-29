@@ -3532,6 +3532,21 @@ int __init omap2_clk_init(void)
 		dpll4_m4_ck = dpll4_m4_ck_3630;
 		dpll4_m5_ck = dpll4_m5_ck_3630;
 		dpll4_m6_ck = dpll4_m6_ck_3630;
+
+		/* For 3630: override clkops_omap2_dflt_wait for the
+		 * clocks affected from HSDivider PWRDN reset limitation */
+		dpll3_m3x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
+		dpll4_m2x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
+		dpll4_m3x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
+		dpll4_m4x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
+		dpll4_m5x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
+		dpll4_m6x2_ck.ops =
+			&clkops_omap3_pwrdn_with_hsdiv_wait_restore;
 	} else {
 		dpll4_dd = dpll4_dd_34xx;
 		dpll4_m2_ck = dpll4_m2_ck_34xx;

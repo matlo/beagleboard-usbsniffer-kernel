@@ -148,6 +148,60 @@ const struct clkops clkops_omap3430es2_hsotgusb_wait = {
 	.find_companion = omap2_clk_dflt_find_companion,
 };
 
+/** omap3_pwrdn_clk_enable_with_hsdiv_restore - enable clocks suffering
+ *         from HSDivider problem.
+ * @clk: DPLL output struct clk
+ *
+ * 3630 only: dpll3_m3_ck, dpll4_m2_ck, dpll4_m3_ck, dpll4_m4_ck, dpll4_m5_ck
+ * & dpll4_m6_ck dividers get lost after their respective PWRDN bits are set.
+ * Any write to the corresponding CM_CLKSEL register will refresh the
+ * dividers.  Only x2 clocks are affected, so it is safe to trust the parent
+ * clock information to refresh the CM_CLKSEL registers.
+ */
+int omap3_pwrdn_clk_enable_with_hsdiv_restore(struct clk *clk)
+{
+	u32 orig_v, v, c, clksel_shift, max_div;
+	int ret;
+
+	/* enable the clock */
+	ret = omap2_dflt_clk_enable(clk);
+
+	/* Restore the dividers */
+	if (!ret) {
+		v = __raw_readl(clk->parent->clksel_reg);
+		orig_v = v;
+
+		clksel_shift = __ffs(clk->parent->clksel_mask);
+
+		max_div = clk->parent->clksel_mask >> clksel_shift;
+
+		/* Isolate the current divider */
+		c = v & clk->parent->clksel_mask;
+		c >>= clksel_shift;
+
+		/* Prevent excessively high clock rates if divider would wrap */
+		c += (c == max_div) ? -1 : 1;
+
+		/* Write the temporarily altered divider back */
+		c <<= clksel_shift;
+		v &= ~c;
+		v |= c;
+		__raw_writel(v, clk->parent->clksel_reg);
+
+		/* Write the original divider */
+		__raw_writel(orig_v, clk->parent->clksel_reg);
+	}
+
+	return ret;
+}
+
+const struct clkops clkops_omap3_pwrdn_with_hsdiv_wait_restore = {
+	.enable		= omap3_pwrdn_clk_enable_with_hsdiv_restore,
+	.disable	= omap2_dflt_clk_disable,
+	.find_companion	= omap2_clk_dflt_find_companion,
+	.find_idlest	= omap2_clk_dflt_find_idlest,
+};
+
 const struct clkops clkops_noncore_dpll_ops = {
 	.enable		= omap3_noncore_dpll_enable,
 	.disable	= omap3_noncore_dpll_disable,
