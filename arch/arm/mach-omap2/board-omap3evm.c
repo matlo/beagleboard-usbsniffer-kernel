@@ -587,6 +587,20 @@ static struct omap_keypad_pm_state omap3evm_kp_pm_state = {
 	.wk_mask	= OMAP3430_EN_GPIO1,
 	.padconf	= 0x1e0,
 };
+
+static struct omap_opp * _omap35x_mpu_rate_table	= omap35x_mpu_rate_table;
+static struct omap_opp * _omap37x_mpu_rate_table	= omap37x_mpu_rate_table;
+static struct omap_opp * _omap35x_dsp_rate_table	= omap35x_dsp_rate_table;
+static struct omap_opp * _omap37x_dsp_rate_table	= omap37x_dsp_rate_table;
+static struct omap_opp * _omap35x_l3_rate_table		= omap35x_l3_rate_table;
+static struct omap_opp * _omap37x_l3_rate_table		= omap37x_l3_rate_table;
+#else	/* CONFIG_PM */
+static struct omap_opp * _omap35x_mpu_rate_table	= NULL;
+static struct omap_opp * _omap37x_mpu_rate_table	= NULL;
+static struct omap_opp * _omap35x_dsp_rate_table	= NULL;
+static struct omap_opp * _omap37x_dsp_rate_table	= NULL;
+static struct omap_opp * _omap35x_l3_rate_table		= NULL;
+static struct omap_opp * _omap37x_l3_rate_table		= NULL;
 #endif	/* CONFIG_PM */
 
 static int omap3evm_twl_gpio_setup(struct device *dev,
@@ -871,17 +885,17 @@ static void __init omap3_evm_init_irq(void)
 	{
 		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 					NULL,
-					omap37x_mpu_rate_table,
-					omap37x_dsp_rate_table,
-					omap37x_l3_rate_table);
+					_omap37x_mpu_rate_table,
+					_omap37x_dsp_rate_table,
+					_omap37x_l3_rate_table);
 	}
 	else
 	{
 		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 					NULL,
-					omap35x_mpu_rate_table,
-					omap35x_dsp_rate_table,
-					omap35x_l3_rate_table);
+					_omap35x_mpu_rate_table,
+					_omap35x_dsp_rate_table,
+					_omap35x_l3_rate_table);
 	}
 	omap_init_irq();
 	omap_gpio_init();
