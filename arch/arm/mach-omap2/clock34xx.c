@@ -21,6 +21,8 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/err.h>
+#include <linux/cpufreq.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -174,6 +176,38 @@ void __init omap3_clk_lock_dpll5(void)
 
 /* Common clock code */
 
+#ifdef CONFIG_CPU_FREQ
+static struct cpufreq_frequency_table freq_table[MAX_VDD1_OPP+1];
+
+void omap3_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
+{
+	struct omap_opp *prcm;
+	int i = 0;
+
+	if (!mpu_opps)
+		return;
+
+	prcm = mpu_opps + MAX_VDD1_OPP;
+	for (; prcm->rate; prcm--) {
+		freq_table[i].index = i;
+		freq_table[i].frequency = prcm->rate / 1000;
+		i++;
+	}
+
+	if (i == 0) {
+		printk(KERN_WARNING "%s: failed to initialize frequency \
+								table\n",
+								__func__);
+		return;
+	}
+
+	freq_table[i].index = i;
+	freq_table[i].frequency = CPUFREQ_TABLE_END;
+
+	*table = &freq_table[0];
+}
+#endif
+
 /* REVISIT: Move this init stuff out into clock.c */
 
 /*
@@ -217,5 +251,3 @@ static int __init omap3xxx_clk_arch_init(void)
 	return 0;
 }
 arch_initcall(omap3xxx_clk_arch_init);
-
-
