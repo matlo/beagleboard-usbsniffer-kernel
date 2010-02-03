@@ -72,6 +72,8 @@ struct omap_device {
 	s8				pm_lat_level;
 	u8				hwmods_cnt;
 	u8				_state;
+	u32                             activate_loss_cnt;
+	u32                             deactivate_loss_cnt;
 };
 
 /* Device driver interface (call via platform_data fn ptrs) */
@@ -79,6 +81,7 @@ struct omap_device {
 int omap_device_enable(struct platform_device *pdev);
 int omap_device_idle(struct platform_device *pdev);
 int omap_device_shutdown(struct platform_device *pdev);
+bool omap_device_has_lost_context(struct platform_device *pdev);
 
 /* Core code interface */
 
