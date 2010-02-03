@@ -84,6 +84,7 @@
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
+#include <plat/powerdomain.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0
@@ -121,6 +122,7 @@
 static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 {
 	struct timespec a, b, c;
+	struct powerdomain *pwrdm;
 
 	pr_debug("omap_device: %s: activating\n", od->pdev.name);
 
@@ -170,6 +172,10 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		od->dev_wakeup_lat -= odpl->activate_lat;
 	}
 
+	pwrdm = omap_device_get_pwrdm(od);
+	if (pwrdm)
+		od->activate_loss_cnt = pwrdm->state_counter[PWRDM_POWER_OFF];
+
 	return 0;
 }
 
@@ -190,6 +196,7 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 {
 	struct timespec a, b, c;
+	struct powerdomain *pwrdm;
 
 	pr_debug("omap_device: %s: deactivating\n", od->pdev.name);
 
@@ -240,6 +247,10 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 
 		od->pm_lat_level++;
 	}
+
+	pwrdm = omap_device_get_pwrdm(od);
+	if (pwrdm)
+		od->deactivate_loss_cnt = pwrdm->state_counter[PWRDM_POWER_OFF];
 
 	return 0;
 }
@@ -561,6 +572,30 @@ int omap_device_shutdown(struct platform_device *pdev)
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
 
 	return ret;
+}
+
+/**
+ * omap_device_has_lost_context() - check if omap_device has lost context
+ * @od: struct omap_device *
+ *
+ * When an omap_device has been deactivated via omap_device_idle() or
+ * omap_device_shutdown() and then (re)activated using omap_device_enable()
+ * This function should be used to determine if the omap_device has
+ * lost context (due to an off-mode transistion)
+ */
+bool omap_device_has_lost_context(struct platform_device *pdev)
+{
+	struct omap_device *od;
+
+	od = _find_by_pdev(pdev);
+
+	if (od->_state != OMAP_DEVICE_STATE_ENABLED) {
+		WARN(1, "omap_device: %s.%d: has_lost_context() called "
+		     "from invalid state\n", od->pdev.name, od->pdev.id);
+		return -EINVAL;
+	}
+
+	return (od->activate_loss_cnt != od->deactivate_loss_cnt);
 }
 
 /**
