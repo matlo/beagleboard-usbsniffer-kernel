@@ -30,6 +30,23 @@
 
 #include <linux/i2c/twl.h>
 
+/*
+ * PM_RECEIVER block register offsets (use TWL4030_MODULE_PM_RECEIVER)
+ */
+#define REG_BB_CFG	0x12
+
+/* PM_RECEIVER  BB_CFG bitfields */
+#define BIT_PM_RECEIVER_BB_CFG_BBCHEN           0x10
+#define BIT_PM_RECEIVER_BB_CFG_BBSEL            0x0C
+#define BIT_PM_RECEIVER_BB_CFG_BBSEL_2V5        0x00
+#define BIT_PM_RECEIVER_BB_CFG_BBSEL_3V0        0x04
+#define BIT_PM_RECEIVER_BB_CFG_BBSEL_3V1        0x08
+#define BIT_PM_RECEIVER_BB_CFG_BBSEL_3v2        0x0c
+#define BIT_PM_RECEIVER_BB_CFG_BBISEL           0x03
+#define BIT_PM_RECEIVER_BB_CFG_BBISEL_25UA      0x00
+#define BIT_PM_RECEIVER_BB_CFG_BBISEL_150UA     0x01
+#define BIT_PM_RECEIVER_BB_CFG_BBISEL_500UA     0x02
+#define BIT_PM_RECEIVER_BB_CFG_BBISEL_1MA       0x03
 
 /*
  * RTC block register offsets (use TWL_MODULE_RTC)
@@ -507,6 +524,14 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 	ret = twl_rtc_read_u8(&rtc_irq_bits, REG_RTC_INTERRUPTS_REG);
 	if (ret < 0)
 		goto out2;
+
+	/* enable backup battery charging */
+	/* use a conservative 25uA @ 3.1V */
+	ret = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
+		BIT_PM_RECEIVER_BB_CFG_BBCHEN |
+		BIT_PM_RECEIVER_BB_CFG_BBSEL_3V1 |
+		BIT_PM_RECEIVER_BB_CFG_BBISEL_25UA,
+		REG_BB_CFG);
 
 	return ret;
 
