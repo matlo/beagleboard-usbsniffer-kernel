@@ -84,11 +84,14 @@
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
+#include <plat/powerdomain.h>
 
 /* These parameters are passed to _omap_device_{de,}activate() */
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
+
+#define OMAP_DEVICE_MAGIC 0xf00dcafe
 
 /* Private functions */
 
@@ -109,6 +112,7 @@
 static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 {
 	struct timespec a, b, c;
+	struct powerdomain *pwrdm;
 
 	pr_debug("omap_device: %s: activating\n", od->pdev.name);
 
@@ -158,6 +162,10 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 		od->dev_wakeup_lat -= odpl->activate_lat;
 	}
 
+	pwrdm = omap_device_get_pwrdm(od);
+	if (pwrdm)
+		od->activate_loss_cnt = pwrdm->state_counter[PWRDM_POWER_OFF];
+
 	return 0;
 }
 
@@ -178,6 +186,7 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 {
 	struct timespec a, b, c;
+	struct powerdomain *pwrdm;
 
 	pr_debug("omap_device: %s: deactivating\n", od->pdev.name);
 
@@ -228,6 +237,10 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 
 		od->pm_lat_level++;
 	}
+
+	pwrdm = omap_device_get_pwrdm(od);
+	if (pwrdm)
+		od->deactivate_loss_cnt = pwrdm->state_counter[PWRDM_POWER_OFF];
 
 	return 0;
 }
@@ -403,6 +416,8 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	od->pm_lats = pm_lats;
 	od->pm_lats_cnt = pm_lats_cnt;
 
+	od->magic = OMAP_DEVICE_MAGIC;
+
 	ret = omap_device_register(od);
 	if (ret)
 		goto odbs_exit4;
@@ -462,8 +477,8 @@ int omap_device_enable(struct platform_device *pdev)
 	od = _find_by_pdev(pdev);
 
 	if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
-		WARN(1, "omap_device: %s.%d: omap_device_enable() called from "
-		     "invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -501,8 +516,8 @@ int omap_device_idle(struct platform_device *pdev)
 	od = _find_by_pdev(pdev);
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED) {
-		WARN(1, "omap_device: %s.%d: omap_device_idle() called from "
-		     "invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -534,8 +549,8 @@ int omap_device_shutdown(struct platform_device *pdev)
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED &&
 	    od->_state != OMAP_DEVICE_STATE_IDLE) {
-		WARN(1, "omap_device: %s.%d: omap_device_shutdown() called "
-		     "from invalid state\n", od->pdev.name, od->pdev.id);
+		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
 		return -EINVAL;
 	}
 
@@ -547,6 +562,30 @@ int omap_device_shutdown(struct platform_device *pdev)
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
 
 	return ret;
+}
+
+/**
+ * omap_device_has_lost_context() - check if omap_device has lost context
+ * @od: struct omap_device *
+ *
+ * When an omap_device has been deactivated via omap_device_idle() or
+ * omap_device_shutdown() and then (re)activated using omap_device_enable()
+ * This function should be used to determine if the omap_device has
+ * lost context (due to an off-mode transistion)
+ */
+bool omap_device_has_lost_context(struct platform_device *pdev)
+{
+	struct omap_device *od;
+
+	od = _find_by_pdev(pdev);
+
+	if (od->_state != OMAP_DEVICE_STATE_ENABLED) {
+		WARN(1, "omap_device: %s.%d: has_lost_context() called "
+		     "from invalid state\n", od->pdev.name, od->pdev.id);
+		return -EINVAL;
+	}
+
+	return (od->activate_loss_cnt != od->deactivate_loss_cnt);
 }
 
 /**
@@ -586,6 +625,18 @@ int omap_device_align_pm_lat(struct platform_device *pdev,
 		ret = _omap_device_activate(od, USE_WAKEUP_LAT);
 
 	return ret;
+}
+
+/**
+ * omap_device_is_valid - Check if pointer is a valid omap_device
+ * @od: struct omap_device *
+ *
+ * Return whether struct omap_device pointer @od points to a valid
+ * omap_device.
+ */
+bool omap_device_is_valid(struct omap_device *od)
+{
+	return (od && od->magic == OMAP_DEVICE_MAGIC);
 }
 
 /**
