@@ -79,13 +79,26 @@ static struct ispprev_rgbtorgb flr_rgb2rgb = {
 	{0x0000, 0x0000, 0x0000}
 };
 
+static struct ispprev_rgbtorgb unity_rgb2rgb = {
+	{	/* RGB-RGB Matrix */
+		{0x0100, 0x0000, 0x0000},
+		{0x0000, 0x0100, 0x0000},
+		{0x0000, 0x0000, 0x0100}
+	},	/* RGB Offset */
+	{0x0000, 0x0000, 0x0000}
+};
+
 /* Default values in Office Flourescent Light for RGB to YUV Conversion*/
 static struct ispprev_csc flr_prev_csc[] = {
 	{
 		{	/* CSC Coef Matrix */
-			{66, 129, 25},
+/*			{66, 129, 25},
 			{-38, -75, 112},
 			{112, -94 , -18}
+*/
+			{0x04C, 0x098, 0x01C},	
+			{0x3D4, 0x3AC, 0x080},
+			{0x080, 0x39E, 0x3EC}
 		},	/* CSC Offset */
 		{0x0, 0x0, 0x0}
 	},
@@ -106,7 +119,6 @@ static struct ispprev_csc flr_prev_csc[] = {
 		{0x0, 0xE7, 0x14}
 	}
 };
-
 
 /* Default values in Office Flourescent Light for CFA Gradient*/
 #define FLR_CFA_GRADTHRS_HORZ	0x28
