@@ -170,6 +170,9 @@ int dss_need_ctx_restore(void);
 void dss_dump_clocks(struct seq_file *s);
 struct bus_type *dss_get_bus(void);
 
+void dss_clk_enable_parent(enum dss_clock clks);
+void dss_clk_disable_parent(enum dss_clock clks);
+
 /* display */
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);

@@ -357,6 +357,50 @@ static void dss_clk_disable_all(void)
 	dss_clk_disable(clks);
 }
 
+void dss_clk_enable_parent(enum dss_clock clks)
+{
+	struct clk *clk;
+
+	if (clks & DSS_CLK_54M) {
+		clk = clk_get_parent(core.dss_54m_fck);
+		clk_enable(clk);
+	}
+	if (clks & DSS_CLK_96M) {
+		clk = clk_get_parent(core.dss_96m_fck);
+		clk_enable(clk);
+	}
+	if (clks & DSS_CLK_FCK1) {
+		clk = clk_get_parent(core.dss1_fck);
+		clk_enable(clk);
+	}
+	if (clks & DSS_CLK_FCK2) {
+		clk = clk_get_parent(core.dss2_fck);
+		clk_enable(clk);
+	}
+}
+
+void dss_clk_disable_parent(enum dss_clock clks)
+{
+	struct clk *clk;
+
+	if (clks & DSS_CLK_54M) {
+		clk = clk_get_parent(core.dss_54m_fck);
+		clk_disable(clk);
+	}
+	if (clks & DSS_CLK_96M) {
+		clk = clk_get_parent(core.dss_96m_fck);
+		clk_disable(clk);
+	}
+	if (clks & DSS_CLK_FCK1) {
+		clk = clk_get_parent(core.dss1_fck);
+		clk_disable(clk);
+	}
+	if (clks & DSS_CLK_FCK2) {
+		clk = clk_get_parent(core.dss2_fck);
+		clk_disable(clk);
+	}
+}
+
 /* DEBUGFS */
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 static void dss_debug_dump_clocks(struct seq_file *s)

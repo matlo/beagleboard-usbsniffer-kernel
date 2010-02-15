@@ -522,6 +522,14 @@ int dss_suspend_all_devices(void)
 	int r;
 	struct bus_type *bus = dss_get_bus();
 
+	/*
+	 * WORK-AROUND: With enable_off_mode=1, the system comes out
+	 * immediately from suspend without any exteral trigger. It has been
+	 * found that enabling parent clock, solves this issue. Although it
+	 * doesn't work (comes out immediately) at very first time, but works
+	 * for sub-sequent suspend calls.
+	 */
+	dss_clk_enable_parent(DSS_CLK_FCK1);
 	r = bus_for_each_dev(bus, NULL, NULL, dss_suspend_device);
 	if (r) {
 		/* resume all displays that were suspended */
@@ -552,6 +560,7 @@ int dss_resume_all_devices(void)
 {
 	struct bus_type *bus = dss_get_bus();
 
+	dss_clk_disable_parent(DSS_CLK_FCK1);
 	return bus_for_each_dev(bus, NULL, NULL, dss_resume_device);
 }
 
