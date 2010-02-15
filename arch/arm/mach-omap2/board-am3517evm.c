@@ -960,6 +960,8 @@ static void __init am3517_evm_init(void)
 	omap_serial_init();
 	am3517evm_flash_init();
 	usb_musb_init();
+	/* Configure GPIO for EHCI port */
+	omap_mux_init_gpio(57, OMAP_PIN_OUTPUT);
 	usb_ehci_init(&ehci_pdata);
 
 	/* TSC 2004 */
