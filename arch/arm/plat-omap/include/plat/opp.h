@@ -254,31 +254,31 @@ static inline int opp_get_opp_count(struct omap_opp *oppl)
 static inline struct omap_opp *opp_find_freq_exact(struct omap_opp *oppl,
 				     unsigned long freq, bool enabled)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline struct omap_opp *opp_find_freq_floor(struct omap_opp *oppl,
 				     unsigned long *freq)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline struct omap_opp *opp_find_freq_ceil(struct omap_opp *oppl,
 					unsigned long *freq)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline
 struct omap_opp __init *opp_init_list(const struct omap_opp_def *opp_defs)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline struct omap_opp *opp_add(struct omap_opp *oppl,
 			 const struct omap_opp_def *opp_def)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline int opp_enable(struct omap_opp *opp)
@@ -294,7 +294,7 @@ static inline int opp_disable(struct omap_opp *opp)
 static inline struct omap_opp * __deprecated
 opp_find_by_opp_id(struct omap_opp *opps, u8 opp_id)
 {
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline u8 __deprecated opp_get_opp_id(struct omap_opp *opp)
