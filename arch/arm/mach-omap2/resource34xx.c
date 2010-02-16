@@ -177,7 +177,7 @@ static int __deprecated opp_to_freq(unsigned long *freq, enum opp_t opp_type,
 	BUG_ON(!freq || opp_type >= OPP_TYPES_MAX);
 
 	opp = opp_find_by_opp_id(opp_type, opp_id);
-	if (!opp)
+	if (IS_ERR(opp))
 		return -EINVAL;
 
 	*freq = opp_get_freq(opp);
