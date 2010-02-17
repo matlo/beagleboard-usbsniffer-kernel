@@ -53,6 +53,19 @@
 #include "pm.h"
 #include "sdrc.h"
 
+#ifdef CONFIG_SUSPEND
+static suspend_state_t suspend_state = PM_SUSPEND_ON;
+static inline bool is_suspending(void)
+{
+	return (suspend_state != PM_SUSPEND_ON);
+}
+#else
+static inline bool is_suspending(void)
+{
+	return false;
+}
+#endif
+
 /* Scratchpad offsets */
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31
 #define OMAP343X_TABLE_VALUE_OFFSET	   0x30
@@ -456,6 +469,9 @@ void omap_sram_idle(void)
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
 
+	if (is_suspending())
+		pm_dbg_regset_save(1);
+
 	/*
 	 * omap3_arm_context is the location where ARM registers
 	 * get saved. The restore path then reads from this
@@ -463,6 +479,9 @@ void omap_sram_idle(void)
 	 */
 	_omap_sram_idle(omap3_arm_context, save_state);
 	cpu_init();
+
+	if (is_suspending())
+		pm_dbg_regset_save(2);
 
 	/* Restore normal SDRC POWER settings */
 	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
@@ -621,8 +640,6 @@ out:
 }
 
 #ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state;
-
 static void omap2_pm_wakeup_on_timer(u32 seconds)
 {
 	u32 tick_rate, cycles;
@@ -1208,6 +1225,9 @@ static int __init omap3_pm_init(void)
 		local_irq_enable();
 		local_fiq_enable();
 	}
+
+	pm_dbg_regset_init(1);
+	pm_dbg_regset_init(2);
 
 	omap3_save_scratchpad_contents();
 err1:
