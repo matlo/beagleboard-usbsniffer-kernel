@@ -1776,7 +1776,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 		     MMC_CAP_WAIT_WHILE_BUSY;
 
 	if (mmc_slot(host).wires >= 8)
-		mmc->caps |= MMC_CAP_8_BIT_DATA;
+		mmc->caps |= (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA);
 	else if (mmc_slot(host).wires >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
