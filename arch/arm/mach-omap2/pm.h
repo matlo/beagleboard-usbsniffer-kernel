@@ -15,6 +15,7 @@
 
 extern u32 enable_off_mode;
 extern u32 sleep_while_idle;
+extern u32 voltage_off_while_idle;
 
 extern void *omap3_secure_ram_storage;
 extern void omap3_pm_off_mode_enable(int);
@@ -35,6 +36,31 @@ extern void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params);
 #else
 static
 inline void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
+{
+}
+#endif
+
+struct prm_setup_vc {
+	u16 clksetup;
+	u16 voltsetup_time1;
+	u16 voltsetup_time2;
+	u16 voltoffset;
+	u16 voltsetup2;
+/* PRM_VC_CMD_VAL_0 specific bits */
+	u16 vdd0_on;
+	u16 vdd0_onlp;
+	u16 vdd0_ret;
+	u16 vdd0_off;
+/* PRM_VC_CMD_VAL_1 specific bits */
+	u16 vdd1_on;
+	u16 vdd1_onlp;
+	u16 vdd1_ret;
+	u16 vdd1_off;
+};
+#ifdef CONFIG_PM
+extern void omap3_pm_init_vc(struct prm_setup_vc *setup_vc);
+#else
+static inline void omap3_pm_init_vc(struct prm_setup_vc *setup_vc)
 {
 }
 #endif
