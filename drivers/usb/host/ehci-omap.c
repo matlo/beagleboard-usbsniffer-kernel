@@ -710,13 +710,11 @@ static void omap_stop_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 
 #ifdef CONFIG_PM
 /*-------------------------------------------------------------------------*/
-static int omap_ehci_bus_suspend(struct usb_hcd *hcd)
+static int omap_ehci_bus_suspend(struct device *dev)
 {
 	struct ehci_hcd_omap *omap = gb_omap;
 	int ret = 0;
 	unsigned reg = 0;
-
-	ret = ehci_bus_suspend(hcd);
 
 	if (!omap->suspended) {
 		/* Enable forced idle mode */
@@ -733,6 +731,14 @@ static int omap_ehci_bus_suspend(struct usb_hcd *hcd)
 				| OMAP_UHH_SYSCONFIG_M_FORCED_STDBY;
 		ehci_omap_writel(omap->uhh_base, OMAP_UHH_SYSCONFIG, reg);
 
+		clk_disable(omap->usbtll_fck);
+		clk_put(omap->usbtll_fck);
+		omap->usbtll_fck = NULL;
+
+		clk_disable(omap->usbhost_ick);
+		clk_put(omap->usbhost_ick);
+		omap->usbhost_ick = NULL;
+
 		clk_disable(omap->usbhost1_48m_fck);
 		clk_put(omap->usbhost1_48m_fck);
 		omap->usbhost1_48m_fck = NULL;
@@ -741,10 +747,9 @@ static int omap_ehci_bus_suspend(struct usb_hcd *hcd)
 		clk_put(omap->usbhost2_120m_fck);
 		omap->usbhost2_120m_fck = NULL;
 
-		clk_disable(omap->usbtll_fck);
-		clk_put(omap->usbtll_fck);
-		omap->usbtll_fck = NULL;
-
+		clk_disable(omap->usbtll_ick);
+		clk_put(omap->usbtll_ick);
+		omap->usbtll_ick = NULL;
 		/* switch off the EHCI PHY */
 		if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
 				omap->phy_reset) {
@@ -763,19 +768,19 @@ static int omap_ehci_bus_suspend(struct usb_hcd *hcd)
 	return ret;
 }
 
-static int omap_ehci_bus_resume(struct usb_hcd *hcd)
+static int omap_ehci_bus_resume(struct device *dev)
 {
 	struct ehci_hcd_omap *omap = gb_omap;
 	int ret = 0;
 	unsigned reg = 0;
 
 	if (omap->suspended) {
-		omap->usbtll_fck = clk_get(omap->dev, "usbtll_fck");
-		if (IS_ERR(omap->usbtll_fck)) {
-			ret = PTR_ERR(omap->usbtll_fck);
-			goto clk_error;
+		omap->usbhost_ick = clk_get(omap->dev, "usbhost_ick");
+		if (IS_ERR(omap->usbhost_ick)) {
+			ret = PTR_ERR(omap->usbhost_ick);
+			goto clk_error_usbhost_ick;
 		}
-		clk_enable(omap->usbtll_fck);
+		clk_enable(omap->usbhost_ick);
 		udelay(30);
 
 		omap->usbhost2_120m_fck =
@@ -795,6 +800,21 @@ static int omap_ehci_bus_resume(struct usb_hcd *hcd)
 		clk_enable(omap->usbhost1_48m_fck);
 		udelay(30);
 
+		omap->usbtll_fck = clk_get(omap->dev, "usbtll_fck");
+		if (IS_ERR(omap->usbtll_fck)) {
+			ret = PTR_ERR(omap->usbtll_fck);
+			goto clk_error_usbtll_fck;
+		}
+		clk_enable(omap->usbtll_fck);
+		udelay(30);
+
+		omap->usbtll_ick = clk_get(omap->dev, "usbtll_ick");
+		if (IS_ERR(omap->usbtll_ick)) {
+			ret = PTR_ERR(omap->usbtll_ick);
+			goto clk_error_usbtll_ick;
+		}
+		clk_enable(omap->usbtll_ick);
+		udelay(30);
 		/* Enable smart idle mode */
 		reg = ehci_omap_readl(omap->tll_base, OMAP_USBTLL_SYSCONFIG);
 		reg &= ~OMAP_USBTLL_SYSCONFIG_SIDLEMASK;
@@ -811,7 +831,6 @@ static int omap_ehci_bus_resume(struct usb_hcd *hcd)
 
 		omap->suspended = 0;
 	}
-	ret = ehci_bus_resume(hcd);
 
 	/* reset the EHCI PHY */
 	if (!cpu_is_omap3517() && !cpu_is_omap3505() && omap->phy_reset) {
@@ -830,17 +849,33 @@ static int omap_ehci_bus_resume(struct usb_hcd *hcd)
 	}
 	return ret;
 
+clk_error_usbtll_ick:
+	clk_disable(omap->usbtll_fck);
+	clk_put(omap->usbtll_fck);
+	omap->usbtll_fck = NULL;
+clk_error_usbtll_fck:
+	clk_disable(omap->usbhost1_48m_fck);
+	clk_put(omap->usbhost1_48m_fck);
+	omap->usbhost1_48m_fck = NULL;
 clk_error_48m_fck:
 	clk_disable(omap->usbhost2_120m_fck);
 	clk_put(omap->usbhost2_120m_fck);
 	omap->usbhost2_120m_fck = NULL;
 clk_error_120m_fck:
-	clk_disable(omap->usbtll_fck);
-	clk_put(omap->usbtll_fck);
-	omap->usbtll_fck = NULL;
-clk_error:
+	clk_disable(omap->usbhost_ick);
+	clk_put(omap->usbhost_ick);
+	omap->usbhost_ick = NULL;
+clk_error_usbhost_ick:
 	return ret;
 }
+
+static const struct dev_pm_ops ehci_omap_dev_pm_ops = {
+	.suspend	= omap_ehci_bus_suspend,
+	.resume_noirq	= omap_ehci_bus_resume,
+};
+#define EHCI_OMAP_DEV_PM_OPS (&ehci_omap_dev_pm_ops)
+#else
+#define EHCI_OMAP_DEV_PM_OPS NULL
 #endif
 
 static const struct hc_driver ehci_omap_hc_driver;
@@ -1085,10 +1120,9 @@ static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
 	.remove			= ehci_hcd_omap_remove,
 	.shutdown		= ehci_hcd_omap_shutdown,
-	/*.suspend		= ehci_hcd_omap_suspend, */
-	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {
 		.name		= "ehci-omap",
+		.pm		= EHCI_OMAP_DEV_PM_OPS,
 	}
 };
 
@@ -1132,9 +1166,6 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	.hub_status_data	= ehci_hub_status_data,
 	.hub_control		= ehci_hub_control,
 #ifdef CONFIG_PM
-	.bus_suspend		= omap_ehci_bus_suspend,
-	.bus_resume		= omap_ehci_bus_resume,
-#else
 	.bus_suspend		= ehci_bus_suspend,
 	.bus_resume		= ehci_bus_resume,
 #endif
