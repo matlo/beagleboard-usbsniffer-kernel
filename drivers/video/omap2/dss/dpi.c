@@ -249,6 +249,12 @@ static int dpi_display_suspend(struct omap_dss_device *dssdev)
 
 	dispc_enable_lcd_out(0);
 
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+	dss_select_clk_source(0, 0);
+	dsi_pll_uninit();
+	dss_clk_disable(DSS_CLK_FCK2);
+#endif
+
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
@@ -258,12 +264,29 @@ static int dpi_display_suspend(struct omap_dss_device *dssdev)
 
 static int dpi_display_resume(struct omap_dss_device *dssdev)
 {
+	int r = 0;
+
 	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED)
 		return -EINVAL;
 
 	DSSDBG("dpi_display_resume\n");
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+	dss_clk_enable(DSS_CLK_FCK2);
+	r = dsi_pll_init(dssdev, 0, 1);
+	if (r) {
+		DSSERR("failed in dsi_pll_init\n");
+		goto err1;
+	}
+	r = dpi_set_mode(dssdev);
+	if (r) {
+		DSSERR("failed in dpi_set_mode\n");
+		goto err2;
+	}
+	mdelay(2);
+#endif
 
 	dispc_enable_lcd_out(1);
 
@@ -272,7 +295,17 @@ static int dpi_display_resume(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	return 0;
+	return r;
+
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+err2:
+        dsi_pll_uninit();
+	dss_clk_disable(DSS_CLK_FCK2);
+err1:
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+
+	return r;
+#endif
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
