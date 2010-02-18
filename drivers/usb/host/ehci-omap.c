@@ -750,18 +750,6 @@ static int omap_ehci_bus_suspend(struct device *dev)
 		clk_disable(omap->usbtll_ick);
 		clk_put(omap->usbtll_ick);
 		omap->usbtll_ick = NULL;
-		/* switch off the EHCI PHY */
-		if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
-				omap->phy_reset) {
-			if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY &&
-				gpio_is_valid(omap->reset_gpio_port[0])) {
-				gpio_set_value(omap->reset_gpio_port[0], 0);
-			}
-			if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY &&
-				gpio_is_valid(omap->reset_gpio_port[1])) {
-				gpio_set_value(omap->reset_gpio_port[1], 0);
-			}
-		}
 		omap->suspended = 1;
 	}
 
@@ -832,21 +820,6 @@ static int omap_ehci_bus_resume(struct device *dev)
 		omap->suspended = 0;
 	}
 
-	/* reset the EHCI PHY */
-	if (!cpu_is_omap3517() && !cpu_is_omap3505() && omap->phy_reset) {
-		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY &&
-				gpio_is_valid(omap->reset_gpio_port[0])) {
-			gpio_set_value(omap->reset_gpio_port[0], 0);
-			udelay(30);
-			gpio_set_value(omap->reset_gpio_port[0], 1);
-		}
-		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY &&
-				gpio_is_valid(omap->reset_gpio_port[1])) {
-			gpio_set_value(omap->reset_gpio_port[1], 0);
-			udelay(30);
-			gpio_set_value(omap->reset_gpio_port[1], 1);
-		}
-	}
 	return ret;
 
 clk_error_usbtll_ick:
