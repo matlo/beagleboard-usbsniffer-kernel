@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/leds.h>
 #include <linux/interrupt.h>
+#include <linux/backlight.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -452,6 +453,58 @@ static struct platform_device omap3_evm_dss_device = {
 		.platform_data = &omap3_evm_dss_data,
 	},
 };
+
+/*
+ * PWMA/B register offsets (TWL4030_MODULE_PWMA)
+ */
+#define TWL_LED_EN	0x0
+#define TWL_LED_PWMON	0x0
+#define TWL_LED_PWMOFF	0x1
+
+static void omap3evm_set_bl_intensity(int intensity)
+{
+	unsigned char c;
+
+	if (intensity > 100)
+		return;
+	/*
+	 * Enable LEDA for backlight
+	 */
+	twl_i2c_write_u8(TWL4030_MODULE_LED, 0x11, TWL_LED_EN);
+
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2) {
+		c = ((125 * (100 - intensity)) / 100) + 1;
+		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x7F,
+				TWL_LED_PWMOFF);
+		twl_i2c_write_u8(TWL4030_MODULE_PWMA, c,
+				TWL_LED_PWMON);
+	} else {
+		c = ((125 * (100 - intensity)) / 100) + 2;
+		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x1,
+				TWL_LED_PWMON);
+		twl_i2c_write_u8(TWL4030_MODULE_PWMA, c,
+				TWL_LED_PWMOFF);
+	}
+}
+
+static struct generic_bl_info omap3evm_bl_platform_data = {
+	.name			= "omap3evm-bklight",
+	.max_intensity		= 100,
+	.default_intensity	= 70,
+	.limit_mask		= 0,
+	.set_bl_intensity	= omap3evm_set_bl_intensity,
+	.kick_battery		= NULL,
+};
+
+static struct platform_device omap3evm_bklight_device = {
+	.name		= "generic-bl",
+	.id		= -1,
+	.dev		= {
+		.parent		= &omap3_evm_dss_device.dev,
+		.platform_data	= &omap3evm_bl_platform_data,
+	},
+};
+
 
 static struct platform_device omap3evm_camkit_device = {
 	.name		= "omap3evm_camkit",
@@ -907,6 +960,7 @@ static void __init omap3_evm_init_irq(void)
 static struct platform_device *omap3_evm_devices[] __initdata = {
 	&omap3_evm_dss_device,
 	&omap3evm_camkit_device,
+	&omap3evm_bklight_device,
 };
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
