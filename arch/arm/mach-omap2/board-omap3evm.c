@@ -327,7 +327,7 @@ static void __init omap3_evm_display_init(void)
 		printk(KERN_ERR "failed to get lcd_panel_envdd\n");
 		goto err_5;
 	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 0);
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 1);
 
 	return;
 
@@ -622,7 +622,10 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
 	gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	else
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
 
 	/* gpio + 7 == DVI Enable */
 	gpio_request(gpio + 7, "EN_DVI");
