@@ -294,7 +294,7 @@ static void __init am3517_evm_display_init(void)
 		printk(KERN_ERR "failed to get lcd_panel_pwr\n");
 		goto err_2;
 	}
-	gpio_direction_output(LCD_PANEL_PWR, 1);
+	gpio_direction_output(LCD_PANEL_PWR, 0);
 
 	printk(KERN_INFO "Display initialized successfully\n");
 	return;
