@@ -37,7 +37,7 @@ static struct omap_video_timings sharp_ls_timings = {
 	.x_res = 480,
 	.y_res = 640,
 
-	.pixel_clock	= 19200,
+	.pixel_clock	= 24000,
 
 	.hsw		= 2,
 	.hfp		= 1,
