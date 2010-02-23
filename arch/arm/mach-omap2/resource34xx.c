@@ -478,6 +478,7 @@ int set_opp(struct shared_resource *resp, u32 target_level)
 		/* uh uh.. no OPPs?? */
 		BUG_ON(IS_ERR(oppx));
 
+		target_level = 0;
 		ret = freq_to_opp((u8 *)&target_level, OPP_L3, req_l3_freq);
 		/* we dont expect this to fail */
 		BUG_ON(ret);
