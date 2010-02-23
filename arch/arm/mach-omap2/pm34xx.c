@@ -58,6 +58,7 @@
 u32 enable_off_mode;
 u32 sleep_while_idle;
 u32 wakeup_timer_seconds;
+u32 voltage_off_while_idle;
 
 struct power_state {
 	struct powerdomain *pwrdm;
@@ -77,6 +78,22 @@ static int (*_omap_save_secure_sram)(u32 *addr);
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
 static struct powerdomain *cam_pwrdm;
+
+static struct prm_setup_vc prm_setup = {
+	.clksetup = 0xff,
+	.voltsetup_time1 = 0xfff,
+	.voltsetup_time2 = 0xfff,
+	.voltoffset = 0xff,
+	.voltsetup2 = 0xff,
+	.vdd0_on = 0x30,	/* 1.2v */
+	.vdd0_onlp = 0x20,	/* 1.0v */
+	.vdd0_ret = 0x1e,	/* 0.975v */
+	.vdd0_off = 0x00,	/* 0.6v */
+	.vdd1_on = 0x2c,	/* 1.15v */
+	.vdd1_onlp = 0x20,	/* 1.0v */
+	.vdd1_ret = 0x1e,	/* .975v */
+	.vdd1_off = 0x00,	/* 0.6v */
+};
 
 static inline void omap3_per_save_context(void)
 {
@@ -365,6 +382,7 @@ void omap_sram_idle(void)
 		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
 		return;
 	}
+
 	pwrdm_pre_transition();
 
 	/* NEON control */
@@ -395,8 +413,19 @@ void omap_sram_idle(void)
 		omap_uart_prepare_idle(0);
 		omap_uart_prepare_idle(1);
 		if (core_next_state == PWRDM_POWER_OFF) {
+			u32 voltctrl = OMAP3430_AUTO_OFF;
+
+			if (voltage_off_while_idle)
+				voltctrl |= OMAP3430_SEL_OFF;
+			prm_set_mod_reg_bits(voltctrl,
+					     OMAP3430_GR_MOD,
+					     OMAP3_PRM_VOLTCTRL_OFFSET);
 			omap3_core_save_context();
 			omap3_prcm_save_context();
+		} else if (core_next_state == PWRDM_POWER_RET) {
+			prm_set_mod_reg_bits(OMAP3430_AUTO_RET,
+						OMAP3430_GR_MOD,
+						OMAP3_PRM_VOLTCTRL_OFFSET);
 		}
 		/* Enable IO-PAD and IO-CHAIN wakeups */
 		prm_set_mod_reg_bits(OMAP3430_EN_IO, WKUP_MOD, PM_WKEN);
@@ -450,10 +479,18 @@ void omap_sram_idle(void)
 		}
 		omap_uart_resume_idle(0);
 		omap_uart_resume_idle(1);
-		if (core_next_state == PWRDM_POWER_OFF)
-			prm_clear_mod_reg_bits(OMAP3430_AUTO_OFF,
+		if (core_next_state == PWRDM_POWER_OFF) {
+			u32 voltctrl = OMAP3430_AUTO_OFF;
+
+			if (voltage_off_while_idle)
+				voltctrl |= OMAP3430_SEL_OFF;
+			prm_clear_mod_reg_bits(voltctrl,
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
+		} else if (core_next_state == PWRDM_POWER_RET)
+			prm_clear_mod_reg_bits(OMAP3430_AUTO_RET,
+						OMAP3430_GR_MOD,
+						OMAP3_PRM_VOLTCTRL_OFFSET);
 	}
 	omap3_intc_resume_idle();
 
@@ -992,6 +1029,26 @@ int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state)
 	return -EINVAL;
 }
 
+void omap3_pm_init_vc(struct prm_setup_vc *setup_vc)
+{
+	if (!setup_vc)
+		return;
+
+	prm_setup.clksetup = setup_vc->clksetup;
+	prm_setup.voltsetup_time1 = setup_vc->voltsetup_time1;
+	prm_setup.voltsetup_time2 = setup_vc->voltsetup_time2;
+	prm_setup.voltoffset = setup_vc->voltoffset;
+	prm_setup.voltsetup2 = setup_vc->voltsetup2;
+	prm_setup.vdd0_on = setup_vc->vdd0_on;
+	prm_setup.vdd0_onlp = setup_vc->vdd0_onlp;
+	prm_setup.vdd0_ret = setup_vc->vdd0_ret;
+	prm_setup.vdd0_off = setup_vc->vdd0_off;
+	prm_setup.vdd1_on = setup_vc->vdd1_on;
+	prm_setup.vdd1_onlp = setup_vc->vdd1_onlp;
+	prm_setup.vdd1_ret = setup_vc->vdd1_ret;
+	prm_setup.vdd1_off = setup_vc->vdd1_off;
+}
+
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;
@@ -1134,4 +1191,60 @@ err2:
 	return ret;
 }
 
+static void __init configure_vc(void)
+{
+
+	prm_write_mod_reg((R_SRI2C_SLAVE_ADDR << OMAP3430_SMPS_SA1_SHIFT) |
+			  (R_SRI2C_SLAVE_ADDR << OMAP3430_SMPS_SA0_SHIFT),
+			  OMAP3430_GR_MOD, OMAP3_PRM_VC_SMPS_SA_OFFSET);
+	prm_write_mod_reg((R_VDD2_SR_CONTROL << OMAP3430_VOLRA1_SHIFT) |
+			  (R_VDD1_SR_CONTROL << OMAP3430_VOLRA0_SHIFT),
+			  OMAP3430_GR_MOD, OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET);
+
+	prm_write_mod_reg((prm_setup.vdd0_on << OMAP3430_VC_CMD_ON_SHIFT) |
+		(prm_setup.vdd0_onlp << OMAP3430_VC_CMD_ONLP_SHIFT) |
+		(prm_setup.vdd0_ret << OMAP3430_VC_CMD_RET_SHIFT) |
+		(prm_setup.vdd0_off << OMAP3430_VC_CMD_OFF_SHIFT),
+		OMAP3430_GR_MOD, OMAP3_PRM_VC_CMD_VAL_0_OFFSET);
+
+	prm_write_mod_reg((prm_setup.vdd1_on << OMAP3430_VC_CMD_ON_SHIFT) |
+		(prm_setup.vdd1_onlp << OMAP3430_VC_CMD_ONLP_SHIFT) |
+		(prm_setup.vdd1_ret << OMAP3430_VC_CMD_RET_SHIFT) |
+		(prm_setup.vdd1_off << OMAP3430_VC_CMD_OFF_SHIFT),
+		OMAP3430_GR_MOD, OMAP3_PRM_VC_CMD_VAL_1_OFFSET);
+
+	prm_write_mod_reg(OMAP3430_CMD1 | OMAP3430_RAV1, OMAP3430_GR_MOD,
+			  OMAP3_PRM_VC_CH_CONF_OFFSET);
+
+	prm_write_mod_reg(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN | OMAP3430_SREN,
+			  OMAP3430_GR_MOD,
+			  OMAP3_PRM_VC_I2C_CFG_OFFSET);
+
+	/* Write setup times */
+	prm_write_mod_reg(prm_setup.clksetup, OMAP3430_GR_MOD,
+			OMAP3_PRM_CLKSETUP_OFFSET);
+	prm_write_mod_reg((prm_setup.voltsetup_time2 <<
+			OMAP3430_SETUP_TIME2_SHIFT) |
+			(prm_setup.voltsetup_time1 <<
+			OMAP3430_SETUP_TIME1_SHIFT),
+			OMAP3430_GR_MOD, OMAP3_PRM_VOLTSETUP1_OFFSET);
+
+	prm_write_mod_reg(prm_setup.voltoffset, OMAP3430_GR_MOD,
+			OMAP3_PRM_VOLTOFFSET_OFFSET);
+	prm_write_mod_reg(prm_setup.voltsetup2, OMAP3430_GR_MOD,
+			OMAP3_PRM_VOLTSETUP2_OFFSET);
+}
+
+static int __init omap3_pm_early_init(void)
+{
+	prm_clear_mod_reg_bits(OMAP3430_OFFMODE_POL, OMAP3430_GR_MOD,
+				OMAP3_PRM_POLCTRL_OFFSET);
+
+	configure_vc();
+
+	return 0;
+}
+
+arch_initcall(omap3_pm_early_init);
 late_initcall(omap3_pm_init);
+
