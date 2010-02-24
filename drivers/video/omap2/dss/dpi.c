@@ -174,7 +174,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_clk_enable(DSS_CLK_FCK2);
-	r = dsi_pll_init(dssdev, 0, 1);
+	r = dsi_pll_init(dssdev, 1, 1);
 	if (r)
 		goto err3;
 #endif
@@ -275,7 +275,7 @@ static int dpi_display_resume(struct omap_dss_device *dssdev)
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_clk_enable(DSS_CLK_FCK2);
-	r = dsi_pll_init(dssdev, 0, 1);
+	r = dsi_pll_init(dssdev, 1, 1);
 	if (r) {
 		DSSERR("failed in dsi_pll_init\n");
 		goto err1;
