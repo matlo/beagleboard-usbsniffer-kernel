@@ -328,7 +328,7 @@ static void __init omap3_evm_display_init(void)
 		printk(KERN_ERR "failed to get lcd_panel_envdd\n");
 		goto err_5;
 	}
-	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 1);
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 0);
 
 	return;
 
