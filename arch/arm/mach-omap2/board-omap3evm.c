@@ -910,6 +910,7 @@ struct ads7846_platform_data ads7846_config = {
 	.get_pendown_state	= ads7846_get_pendown_state,
 	.keep_vref_on		= 1,
 	.settle_delay_usecs	= 150,
+	.wakeup				= true,
 };
 
 static struct omap2_mcspi_device_config ads7846_mcspi_config = {
