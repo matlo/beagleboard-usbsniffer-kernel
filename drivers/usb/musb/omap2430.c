@@ -227,7 +227,12 @@ int __init musb_platform_init(struct musb *musb)
 	l |= SMARTSTDBY;	/* enable smart standby */
 	l &= ~AUTOIDLE;		/* disable auto idle */
 	l &= ~NOIDLE;		/* remove possible noidle */
-	l |= SMARTIDLE;		/* enable smart idle */
+
+	/* SMARTIDLE is blocking core to enter off mode in 3630 */
+	if (cpu_is_omap3630())
+		l |= FORCEIDLE;		/* enable force idle */
+	else
+		l |= SMARTIDLE;		/* enable smart idle */
 	/*
 	 * MUSB AUTOIDLE don't work in 3430.
 	 * Workaround by Richard Woodruff/TI
