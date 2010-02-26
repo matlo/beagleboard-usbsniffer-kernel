@@ -2266,6 +2266,8 @@ void musb_save_context()
 	musb_context.index = musb_readb(musb_base, MUSB_INDEX);
 	musb_context.devctl = musb_readb(musb_base, MUSB_DEVCTL);
 
+	musb_context.busctl = musb_readb(musb_base, MUSB_ULPI_BUSCONTROL);
+
 	for (i = 0; i < MUSB_C_NUM_EPS; ++i) {
 		musb_writeb(musb_base, MUSB_INDEX, i);
 		musb_context.index_regs[i].txmaxp =
@@ -2339,6 +2341,8 @@ void musb_restore_context()
 	musb_writew(musb_base, MUSB_INTRRXE, musb_context.intrrxe);
 	musb_writeb(musb_base, MUSB_INTRUSBE, musb_context.intrusbe);
 	musb_writeb(musb_base, MUSB_DEVCTL, musb_context.devctl);
+
+	musb_writeb(musb_base, MUSB_ULPI_BUSCONTROL, musb_context.busctl);
 
 	for (i = 0; i < MUSB_C_NUM_EPS; ++i) {
 		musb_writeb(musb_base, MUSB_INDEX, i);
