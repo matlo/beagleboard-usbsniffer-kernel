@@ -26,6 +26,7 @@
 
 #include "smartreflex.h"
 #include "resource34xx.h"
+#include "omap3-opp.h"
 #include "pm.h"
 #include "cm.h"
 #include "cm-regbits-34xx.h"
@@ -190,14 +191,14 @@ void init_opp(struct shared_resource *resp)
 		vdd1_resp = resp;
 		dpll1_clk = clk_get(NULL, "dpll1_ck");
 		dpll2_clk = clk_get(NULL, "dpll2_ck");
-		resp->curr_level = get_opp(mpu_opps + MAX_VDD1_OPP,
+		resp->curr_level = get_opp(mpu_opps + get_max_vdd1(),
 				dpll1_clk->rate);
 		curr_vdd1_opp = resp->curr_level;
 	} else if (strcmp(resp->name, "vdd2_opp") == 0) {
 		vdd2_resp = resp;
 		dpll3_clk = clk_get(NULL, "dpll3_m2_ck");
 		l3_clk = clk_get(NULL, "l3_ick");
-		resp->curr_level = get_opp(l3_opps + MAX_VDD2_OPP,
+		resp->curr_level = get_opp(l3_opps + get_max_vdd2(),
 				l3_clk->rate);
 		curr_vdd2_opp = resp->curr_level;
 	}
@@ -390,14 +391,14 @@ int set_opp(struct shared_resource *resp, u32 target_level)
 		/* Convert the tput in KiB/s to Bus frequency in MHz */
 		req_l3_freq = (tput * 1000)/4;
 
-		for (ind = 2; ind <= MAX_VDD2_OPP; ind++)
+		for (ind = 2; ind <= get_max_vdd2(); ind++)
 			if ((l3_opps + ind)->rate >= req_l3_freq) {
 				target_level = ind;
 				break;
 			}
 
 		/* Set the highest OPP possible */
-		if (ind > MAX_VDD2_OPP)
+		if (ind > get_max_vdd2())
 			target_level = ind-1;
 		resource_set_opp_level(VDD2_OPP, target_level, 0);
 	}
@@ -447,10 +448,10 @@ int set_freq(struct shared_resource *resp, u32 target_level)
 		return 0;
 
 	if (strcmp(resp->name, "mpu_freq") == 0) {
-		vdd1_opp = get_opp(mpu_opps + MAX_VDD1_OPP, target_level);
+		vdd1_opp = get_opp(mpu_opps + get_max_vdd1(), target_level);
 		resource_request("vdd1_opp", &dummy_mpu_dev, vdd1_opp);
 	} else if (strcmp(resp->name, "dsp_freq") == 0) {
-		vdd1_opp = get_opp(dsp_opps + MAX_VDD1_OPP, target_level);
+		vdd1_opp = get_opp(dsp_opps + get_max_vdd1(), target_level);
 		resource_request("vdd1_opp", &dummy_dsp_dev, vdd1_opp);
 	}
 	resp->curr_level = target_level;

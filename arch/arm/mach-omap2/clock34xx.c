@@ -329,7 +329,7 @@ void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 	if (!mpu_opps)
 		return;
 
-	prcm = mpu_opps + MAX_VDD1_OPP;
+	prcm = mpu_opps + get_max_vdd1();;
 	for (; prcm->rate; prcm--) {
 		freq_table[i].index = i;
 		freq_table[i].frequency = prcm->rate / 1000;
