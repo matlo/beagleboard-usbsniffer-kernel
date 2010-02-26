@@ -307,6 +307,16 @@ static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+/*
+ * struct queue - Queue data structure
+ */
+struct queue {
+	struct urb *urb;
+	struct queue *next;
+};
+#endif
+
 /*
  * struct musb - Driver instance data.
  */
@@ -346,6 +356,11 @@ struct musb {
 	struct list_head	control;	/* of musb_qh */
 	struct list_head	in_bulk;	/* of musb_qh */
 	struct list_head	out_bulk;	/* of musb_qh */
+
+	struct workqueue_struct *gb_queue;
+	struct work_struct      gb_work;
+	spinlock_t		qlock;
+	struct queue		*qhead;
 #endif
 
 	/* called with IRQs blocked; ON/nonzero implies starting a session,
@@ -631,6 +646,9 @@ extern int musb_platform_get_vbus_status(struct musb *musb);
 
 extern int __init musb_platform_init(struct musb *musb);
 extern int musb_platform_exit(struct musb *musb);
+#ifdef CONFIG_USB_MUSB_HDRC_HCD
+extern void musb_gb_work(struct work_struct *data);
+#endif
 
 /*-------------------------- ProcFS definitions ---------------------*/
 

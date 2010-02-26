@@ -99,7 +99,56 @@
 static void musb_ep_program(struct musb *musb, u8 epnum,
 			struct urb *urb, int is_out,
 			u8 *buf, u32 offset, u32 len);
+struct queue *create(void)
+{
+	struct queue *new;
+	new = kmalloc(sizeof(struct queue), GFP_ATOMIC);
+	if (!new)
+		return NULL;
+	new->next = NULL;
+	return new;
+}
+void push_queue(struct musb *musb, struct urb *urb)
+{
+	struct queue *new, *temp;
 
+	new = create();
+	new->urb = urb;
+
+	temp = musb->qhead;
+
+	spin_lock(&musb->qlock);
+	while (temp->next != NULL)
+		temp = temp->next;
+	temp->next = new;
+	spin_unlock(&musb->qlock);
+}
+
+struct urb *pop_queue(struct musb *musb)
+{
+	struct urb *urb;
+	struct queue *head = musb->qhead;
+	struct queue *temp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&musb->qlock, flags);
+	temp = head->next;
+	if (!temp) {
+		spin_unlock_irqrestore(&musb->qlock, flags);
+		return NULL;
+	}
+	head->next = head->next->next;
+	spin_unlock_irqrestore(&musb->qlock, flags);
+
+	urb = temp->urb;
+	kfree(temp);
+	return urb;
+}
+
+void init_queue(struct musb *musb)
+{
+	musb->qhead = create();
+}
 /*
  * Clear TX fifo. Needed to avoid BABBLE errors.
  */
@@ -298,8 +347,6 @@ start:
 
 /* Context: caller owns controller lock, IRQs are blocked */
 static void musb_giveback(struct musb *musb, struct urb *urb, int status)
-__releases(musb->lock)
-__acquires(musb->lock)
 {
 	DBG(({ int level; switch (status) {
 				case 0:
@@ -324,10 +371,20 @@ __acquires(musb->lock)
 			urb->actual_length, urb->transfer_buffer_length
 			);
 
-	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
-	spin_unlock(&musb->lock);
 	usb_hcd_giveback_urb(musb_to_hcd(musb), urb, status);
-	spin_lock(&musb->lock);
+}
+
+void free_queue(struct musb *musb)
+{
+	struct urb *urb;
+
+	/* giveback any urb still in queue */
+	while ((urb = pop_queue(musb)) != 0)
+		musb_giveback(musb, urb, 0);
+
+	/* free up the queue head memory */
+	kfree(musb->qhead);
+	musb->qhead = NULL;
 }
 
 /* For bulk/interrupt endpoints only */
@@ -348,6 +405,15 @@ static inline void musb_save_toggle(struct musb_qh *qh, int is_in,
 		csr = musb_readw(epio, MUSB_TXCSR) & MUSB_TXCSR_H_DATATOGGLE;
 
 	usb_settoggle(urb->dev, qh->epnum, !is_in, csr ? 1 : 0);
+}
+/* Used to complete urb giveback */
+void musb_gb_work(struct work_struct *data)
+{
+	struct musb *musb = container_of(data, struct musb, gb_work);
+	struct urb *urb;
+
+	while ((urb = pop_queue(musb)) != 0)
+		musb_giveback(musb, urb, 0);
 }
 
 /*
@@ -379,10 +445,16 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		break;
 	}
 
-	qh->is_ready = 0;
-	musb_giveback(musb, urb, status);
-	qh->is_ready = ready;
+	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
 
+	/* If URB completed with error then giveback first */
+	if (status != 0) {
+		qh->is_ready = 0;
+		spin_unlock(&musb->lock);
+		musb_giveback(musb, urb, status);
+		spin_lock(&musb->lock);
+		qh->is_ready = ready;
+	}
 	/* reclaim resources (and bandwidth) ASAP; deschedule it, and
 	 * invalidate qh as soon as list_empty(&hep->urb_list)
 	 */
@@ -429,6 +501,12 @@ static void musb_advance_schedule(struct musb *musb, struct urb *urb,
 		DBG(4, "... next ep%d %cX urb %p\n",
 		    hw_ep->epnum, is_in ? 'R' : 'T', next_urb(qh));
 		musb_start_urb(musb, is_in, qh);
+	}
+
+	/* if URB is successfully completed then giveback in workqueue */
+	if (status == 0) {
+		push_queue(musb, urb);
+		queue_work(musb->gb_queue, &musb->gb_work);
 	}
 }
 
@@ -2158,8 +2236,12 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			|| musb_ep_get_qh(qh->hw_ep, is_in) != qh) {
 		int	ready = qh->is_ready;
 
+		usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
+
 		qh->is_ready = 0;
+		spin_unlock(&musb->lock);
 		musb_giveback(musb, urb, 0);
+		spin_lock(&musb->lock);
 		qh->is_ready = ready;
 
 		/* If nothing else (usually musb_giveback) is using it
@@ -2220,8 +2302,13 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 		 * other transfers, and since !qh->is_ready nothing
 		 * will activate any of these as it advances.
 		 */
-		while (!list_empty(&hep->urb_list))
-			musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
+		while (!list_empty(&hep->urb_list)) {
+			urb = next_urb(qh);
+			usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
+			spin_unlock(&musb->lock);
+			musb_giveback(musb, urb, -ESHUTDOWN);
+			spin_lock(&musb->lock);
+		}
 
 		hep->hcpriv = NULL;
 		list_del(&qh->ring);
