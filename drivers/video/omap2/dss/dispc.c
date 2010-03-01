@@ -2989,7 +2989,11 @@ static void _omap_dispc_initial_config(void)
 	u32 l;
 
 	l = dispc_read_reg(DISPC_SYSCONFIG);
-	l = FLD_MOD(l, 2, 13, 12);	/* MIDLEMODE: smart standby */
+	if (cpu_is_omap34xx() || cpu_is_omap3630())
+		l = FLD_MOD(l, 0, 13, 12);	/* MIDLEMODE: Force standby */
+	else
+		l = FLD_MOD(l, 2, 13, 12);	/* MIDLEMODE: smart standby */
+
 	l = FLD_MOD(l, 2, 4, 3);	/* SIDLEMODE: smart idle */
 	l = FLD_MOD(l, 1, 2, 2);	/* ENWAKEUP */
 	l = FLD_MOD(l, 1, 0, 0);	/* AUTOIDLE */
