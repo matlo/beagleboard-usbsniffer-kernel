@@ -345,7 +345,9 @@ static struct powerdomain usbhost_pwrdm = {
 	 * changing the usb host power domain state from OFF to active once.
 	 * Disabling for now.
 	 */
+#ifdef CONFIG_USB_EHCI_HCD
 	.flags	  = PWRDM_HAS_HDWR_SAR, /* for USBHOST ctrlr only */
+#endif
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
