@@ -1007,22 +1007,26 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		}
 		snprintf(supply, 7, "hsusb%d", i);
 		omap->regulator[i] = regulator_get(omap->dev, supply);
-		if (IS_ERR(omap->regulator[i]))
+		if (IS_ERR(omap->regulator[i])) {
 			dev_dbg(&pdev->dev,
 			"failed to get ehci port%d regulator\n", i);
-		else
+			omap->regulator[i] = NULL;
+		} else {
 			regulator_enable(omap->regulator[i]);
+		}
 
 		/* enable auxiliary supply if required */
 		if (omap->aux[i]) {
 			snprintf(supply_aux, 11, "hsusb%d-aux", i);
 			omap->regulator_aux[i] =
 				regulator_get(omap->dev, supply_aux);
-			if (IS_ERR(omap->regulator_aux[i]))
+			if (IS_ERR(omap->regulator_aux[i])) {
 				dev_dbg(&pdev->dev,
 				"failed to get ehci port%d aux regulator\n", i);
-			else
+				omap->regulator[i] = NULL;
+			} else {
 				regulator_enable(omap->regulator_aux[i]);
+			}
 		}
 	}
 
