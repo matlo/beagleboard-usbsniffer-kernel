@@ -1319,7 +1319,7 @@ static int rsz_vbq_prepare(struct videobuf_queue *q,
 			is_vm_io = 0;
 		}
 		isp_addr = ispmmu_vmap(fh->dev, dma->sglist, dma->sglen);
-		if (!isp_addr)
+		if (!isp_addr || IS_ERR_VALUE(isp_addr))
 			err = -EIO;
 		else {
 			if (vb->i) {
