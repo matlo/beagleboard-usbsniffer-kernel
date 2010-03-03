@@ -237,7 +237,7 @@ static int s35390a_freq_irq_enable(struct i2c_client *client, unsigned enabled)
 	return s35390a_set_reg(s35390a, S35390A_CMD_INT1_REG1, buf, sizeof(buf));
 }
 
-static int s35390a_rtc_freq_irq_enable(struct device *dev, unsigned enabled)
+static int s35390a_rtc_freq_irq_enable(struct device *dev, int enabled)
 {
 	return s35390a_freq_irq_enable(to_i2c_client(dev), enabled);
 }
