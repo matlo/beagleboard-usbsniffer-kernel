@@ -585,6 +585,7 @@ static int s35390a_remove(struct i2c_client *client)
 			i2c_unregister_device(s35390a->client[i]);
 
 	rtc_device_unregister(s35390a->rtc);
+	free_irq(client->irq, client);
 	kfree(s35390a);
 	i2c_set_clientdata(client, NULL);
 
