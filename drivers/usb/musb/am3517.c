@@ -411,6 +411,7 @@ int cppi41_enable_sched_rx(void)
 
 static inline void phy_on(void)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(100);
 	u32 devconf2;
 
 	/*
@@ -427,8 +428,14 @@ static inline void phy_on(void)
 
 	DBG(1, "Waiting for PHY clock good...\n");
 	while (!(omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2)
-			& CONF2_PHYCLKGD))
+			& CONF2_PHYCLKGD)) {
 		cpu_relax();
+
+		if (time_after(jiffies, timeout)) {
+			DBG(1, "musb PHY clock good timed out\n");
+			return;
+		}
+	}
 }
 
 static inline void phy_off(void)
