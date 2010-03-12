@@ -2055,6 +2055,10 @@ bad_config:
 	if (status < 0)
 		goto fail3;
 
+	status = musb_init_debugfs(musb);
+	if (status < 0)
+		goto fail2;
+
 #ifdef CONFIG_SYSFS
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
@@ -2151,6 +2155,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 *  - Peripheral mode: peripheral is deactivated (or never-activated)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
+	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (musb->board_mode == MUSB_HOST)
