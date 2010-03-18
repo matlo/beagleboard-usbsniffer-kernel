@@ -44,6 +44,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/board.h>
+#include <plat/onenand.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -118,6 +119,47 @@ static void __init omap3_evm_get_revision(void)
 	}
 }
 
+static struct mtd_partition omap3evm_onenand_partitions[] = {
+	{
+		.name           = "xloader-onenand",
+		.offset         = 0,
+		.size           = 4*(64*2048),
+		.mask_flags     = MTD_WRITEABLE
+	},
+	{
+		.name           = "uboot-onenand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size		= 15*(64*2048),
+		.mask_flags	= MTD_WRITEABLE
+	},
+	{
+		.name           = "params-onenand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size		= 1*(64*2048),
+	},
+	{
+		.name           = "linux-onenand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size		= 40*(64*2048),
+	},
+	{
+		.name           = "jffs2-onenand",
+		.offset         = MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct omap_onenand_platform_data omap3evm_onenand_data = {
+	.parts = omap3evm_onenand_partitions,
+	.nr_parts = ARRAY_SIZE(omap3evm_onenand_partitions),
+	.dma_channel	= -1,	/* disable DMA in OMAP OneNAND driver */
+};
+
+static void __init omap3evm_onenand_init(void)
+{
+	gpmc_onenand_init(&omap3evm_onenand_data);
+}
+
 static struct mtd_partition omap3evm_nand_partitions[] = {
 	/* All the partition sizes are listed in terms of NAND block size */
 	{
@@ -171,10 +213,12 @@ static struct platform_device omap3evm_nand_device = {
 	.resource       = &omap3evm_nand_resource,
 };
 
+#define ONENAND_MAP	0x20000000 /* OneNand flash */
+
 void __init omap3evm_flash_init(void)
 {
 	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
+	u8 nandcs = GPMC_CS_NUM + 1, onenandcs = GPMC_CS_NUM + 1;
 
 	u32 gpmc_base_add = OMAP34XX_GPMC_VIRT;
 
@@ -187,12 +231,16 @@ void __init omap3evm_flash_init(void)
 			/* Found it!! */
 			if (nandcs > GPMC_CS_NUM)
 				nandcs = cs;
+		} else {
+			ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
+			if ((ret & 0x3F) == (ONENAND_MAP >> 24))
+				onenandcs = cs;
 		}
 		cs++;
 	}
 
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
+	if ((nandcs > GPMC_CS_NUM) && (onenandcs > GPMC_CS_NUM)) {
+		printk(KERN_INFO "NAND/OneNAND: Unable to find configuration "
 			" in GPMC\n ");
 		return;
 	}
@@ -207,6 +255,8 @@ void __init omap3evm_flash_init(void)
 			printk(KERN_ERR "Unable to register NAND device\n");
 		}
 	}
+	if (onenandcs < GPMC_CS_NUM)
+		omap3evm_onenand_data.cs = onenandcs;
 }
 
 
@@ -1051,6 +1101,7 @@ static void __init omap3_evm_init(void)
 	}
 	usb_musb_init();
 	omap3evm_flash_init();
+	omap3evm_onenand_init();
 	usb_ehci_init(&ehci_pdata);
 	ads7846_dev_init();
 	omap3evm_init_smsc911x();
