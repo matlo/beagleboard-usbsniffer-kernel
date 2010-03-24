@@ -88,7 +88,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 #endif
 #if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
-	unsigned long freq = target_freq * 1000;
+	unsigned long freq;
 #endif
 	int ret = 0;
 
@@ -114,6 +114,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	ret = clk_set_rate(mpu_clk, freqs.new * 1000);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 #elif defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
+	freq = target_freq * 1000;
 	if (opp_find_freq_ceil(OPP_MPU, &freq))
 		omap_pm_cpu_set_freq(freq);
 #endif
