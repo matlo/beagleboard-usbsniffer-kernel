@@ -224,7 +224,7 @@ int __init musb_platform_init(struct musb *musb)
 	l = omap_readl(OTG_SYSCONFIG);
 	l &= ~ENABLEWAKEUP;	/* disable wakeup */
 	l &= ~NOSTDBY;		/* remove possible nostdby */
-	l |= FORCESTDBY;	/* enable force standby */
+	l |= SMARTSTDBY;	/* enable smart standby */
 	l &= ~AUTOIDLE;		/* disable auto idle */
 	l &= ~NOIDLE;		/* remove possible noidle */
 
@@ -232,7 +232,7 @@ int __init musb_platform_init(struct musb *musb)
 	if (cpu_is_omap3630())
 		l |= FORCEIDLE;		/* enable force idle */
 	else
-		l |= FORCEIDLE;		/* enable smart idle */
+		l |= SMARTIDLE;		/* enable smart idle */
 	/*
 	 * MUSB AUTOIDLE don't work in 3430.
 	 * Workaround by Richard Woodruff/TI
