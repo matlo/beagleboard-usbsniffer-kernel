@@ -842,6 +842,26 @@ clk_error_usbhost_ick:
 	return ret;
 }
 
+static int usb_ehci_bus_suspend(struct usb_hcd *hcd)
+{
+	int ret = 0;
+
+	ret = ehci_bus_suspend(hcd);
+
+	omap_ehci_bus_suspend(gb_omap->dev);
+
+	return ret;
+}
+static int usb_ehci_bus_resume(struct usb_hcd *hcd)
+{
+	int ret = 0;
+
+	omap_ehci_bus_resume(gb_omap->dev);
+
+	ret = ehci_bus_resume(hcd);
+
+	return ret;
+}
 static const struct dev_pm_ops ehci_omap_dev_pm_ops = {
 	.suspend	= omap_ehci_bus_suspend,
 	.resume_noirq	= omap_ehci_bus_resume,
@@ -1143,8 +1163,8 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	.hub_status_data	= ehci_hub_status_data,
 	.hub_control		= ehci_hub_control,
 #ifdef CONFIG_PM
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
+	.bus_suspend		= usb_ehci_bus_suspend,
+	.bus_resume		= usb_ehci_bus_resume,
 #endif
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
