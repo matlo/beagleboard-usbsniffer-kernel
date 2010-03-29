@@ -2349,7 +2349,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 	u8		devctl;
 
 	if (!is_host_active(musb))
-		return 0;
+		goto suspend_ok;
 
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_SUSPEND:
@@ -2371,12 +2371,21 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 		DBG(3, "trying to suspend as %s while active\n",
 				otg_state_string(musb));
 		return -EBUSY;
-	} else
-		return 0;
+	}
+
+suspend_ok:
+#ifdef CONFIG_PM
+	musb_suspend(musb->controller);
+#endif
+	return 0;
 }
 
 static int musb_bus_resume(struct usb_hcd *hcd)
 {
+#ifdef CONFIG_PM
+	struct musb	*musb = hcd_to_musb(hcd);
+	musb_resume_noirq(musb->controller);
+#endif
 	/* resuming child port does the work */
 	return 0;
 }

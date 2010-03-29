@@ -628,10 +628,16 @@ static int musb_proc_write(struct file *file, const char __user *buffer,
 {
 	char cmd;
 	u8 reg;
-	struct musb *musb = (struct musb *)data;
-	void __iomem *mbase = musb->mregs;
+	struct musb *musb;
+	void __iomem *mbase;
 
+#ifdef CONFIG_PM
+	if (!musb_clock_on)
+		return -EFAULT;
+#endif
 	/* MOD_INC_USE_COUNT; */
+	musb = (struct musb *)data;
+	mbase = musb->mregs;
 
 	if (unlikely(copy_from_user(&cmd, buffer, 1)))
 		return -EFAULT;
@@ -772,6 +778,10 @@ static int musb_proc_read(char *page, char **start,
 	struct musb	*musb = data;
 	unsigned	epnum;
 
+#ifdef CONFIG_PM
+	if (!musb_clock_on)
+		return -EFAULT;
+#endif
 	count -= off;
 	count -= 1;		/* for NUL at end */
 	if (count <= 0)
