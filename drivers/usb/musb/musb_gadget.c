@@ -681,8 +681,15 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 							transfer_size);
 				}
 
-				if (use_dma)
+				if (use_dma) {
 					return;
+				} else {
+					/* Need to clear DMAENAB for the
+					 * backup PIO mode transfer to work
+					 */
+					csr &= ~MUSB_RXCSR_DMAENAB;
+					musb_writew(epio, MUSB_RXCSR, csr);
+				}
 			}
 #endif	/* Mentor's DMA */
 

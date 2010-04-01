@@ -256,6 +256,8 @@ static int dma_channel_program(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	struct musb_dma_channel *musb_channel = channel->private_data;
+	struct musb_dma_controller *controller = musb_channel->controller;
+	struct musb *musb = controller->private_data;
 
 	DBG(2, "ep%d-%s pkt_sz %d, dma_addr 0x%x length %d, mode %d\n",
 		musb_channel->epnum,
@@ -264,6 +266,15 @@ static int dma_channel_program(struct dma_channel *channel,
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
+
+	/* On MUSB:RTL1.8 and above, DMA has to be word aligned */
+	if ((dma_addr % 4) &&
+		(musb->hwvers >= MUSB_HWVERS_1800)) {
+		/* Fail DMA for unaligned buffers:
+		 * Use PIO for such buffers
+		 */
+		return false;
+	}
 
 	channel->actual_len = 0;
 	musb_channel->start_addr = dma_addr;
