@@ -1077,4 +1077,15 @@ config VIDEO_MEM2MEM_TESTDEV
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 
+config VIDEO_MEM2MEM_RESIZER
+	tristate "Stand-Alone Resizer Driver (Mem-To-Mem)"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select OMAP_IOMMU
+	select VIDEOBUF_DMA_SG
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a Standalone resizer driver interfaced with the
+	  V4L2 memory-to-memory driver  framework.
+
 endif # V4L_MEM2MEM_DRIVERS
