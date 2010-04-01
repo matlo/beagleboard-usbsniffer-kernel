@@ -15,8 +15,6 @@
 #ifndef __GADGET_CHIPS_H
 #define __GADGET_CHIPS_H
 
-#include <plat/cpu.h>
-
 #ifdef CONFIG_USB_GADGET_NET2280
 #define	gadget_is_net2280(g)	!strcmp("net2280", (g)->name)
 #else
@@ -275,14 +273,4 @@ static inline bool gadget_supports_altsettings(struct usb_gadget *gadget)
 	return true;
 }
 
-/**
- * gadget_dma32 - return true if we want buffer aligned on 32 bits (for dma)
- * @gadget: the gadget in question
- */
-static inline bool gadget_dma32(struct usb_gadget *gadget)
-{
-	if (gadget_is_musbhdrc(gadget) && cpu_is_omap3630())
-		return true;
-	return false;
-}
 #endif /* __GADGET_CHIPS_H */
