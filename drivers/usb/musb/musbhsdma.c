@@ -132,7 +132,8 @@ static struct dma_channel *dma_channel_allocate(struct dma_controller *c,
 			channel->actual_len = 0;
 			musb_channel->sysdma_channel = -1;
 
-			if (!transmit && use_system_dma()) {
+			if (!transmit && !cpu_is_omap3630() &&
+						use_system_dma()) {
 				int ret;
 				ret = omap_request_dma(OMAP24XX_DMA_NO_DEVICE,
 					"MUSB SysDMA", musb_sysdma_completion,
