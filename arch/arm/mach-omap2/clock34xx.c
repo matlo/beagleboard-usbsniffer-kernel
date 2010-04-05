@@ -401,6 +401,28 @@ void omap3_clk_lock_dpll5(void)
 	return;
 }
 
+extern void __init omap3_iva_idle(void);
+
+/*
+ * Initialize IVA to a idle state. This is typically done by the
+ * pm code, but that happnes during the late init stages. We need this
+ * to be done before the IVA clock rates are switched during boot.
+ */
+static void __init omap2_clk_iva_init_to_idle(void)
+{
+	cm_write_mod_reg(1 << OMAP3430_AUTO_IVA2_DPLL_SHIFT,
+			OMAP3430_IVA2_MOD, CM_AUTOIDLE2);
+
+	/* Don't attach IVA interrupts */
+	prm_write_mod_reg(0, WKUP_MOD, OMAP3430_PM_IVAGRPSEL);
+	prm_write_mod_reg(0, CORE_MOD, OMAP3430_PM_IVAGRPSEL1);
+	prm_write_mod_reg(0, CORE_MOD, OMAP3430ES2_PM_IVAGRPSEL3);
+	prm_write_mod_reg(0, OMAP3430_PER_MOD, OMAP3430_PM_IVAGRPSEL);
+
+	omap3_iva_idle();
+
+}
+
 /* REVISIT: Move this init stuff out into clock.c */
 
 /*
@@ -485,18 +507,6 @@ static int __init omap2_clk_arch_init(void)
 	if (clk_set_rate(dpll1_ck, mpurate))
 		printk(KERN_ERR "*** Unable to set MPU rate\n");
 
-	/* Select VDD2_OPP2, if VDD1_OPP1 is chosen */
-	if (!cpu_is_omap3630() && (opp == VDD1_OPP1)) {
-		l3div = cm_read_mod_reg(CORE_MOD, CM_CLKSEL) &
-			OMAP3430_CLKSEL_L3_MASK;
-
-		l3rate = l3_opps[VDD2_OPP2].rate * l3div;
-		if (clk_set_rate(dpll3_m2_ck, l3rate))
-			pr_err("*** Unable to set L3 rate(%lu)\n", l3rate);
-		else
-			pr_info("Switching to L3 rate: %lu\n", l3rate);
-	}
-
 	/* Get dsprate corresponding to the opp */
 	if ((cpu_is_omap3430()
 			|| cpu_is_omap3530()
@@ -512,8 +522,22 @@ static int __init omap2_clk_arch_init(void)
 
 		dsprate = opp_table[i].rate;
 
+		omap2_clk_iva_init_to_idle();
+
 		if (clk_set_rate(dpll2_ck, dsprate))
 			pr_err("*** Unable to set IVA2 rate\n");
+	}
+
+	/* Select VDD2_OPP2, if VDD1_OPP1 is chosen */
+	if (!cpu_is_omap3630() && (opp == VDD1_OPP1)) {
+		l3div = cm_read_mod_reg(CORE_MOD, CM_CLKSEL) &
+			OMAP3430_CLKSEL_L3_MASK;
+
+		l3rate = l3_opps[VDD2_OPP2].rate * l3div;
+		if (clk_set_rate(dpll3_m2_ck, l3rate))
+			pr_err("*** Unable to set L3 rate(%lu)\n", l3rate);
+		else
+			pr_info("Switching to L3 rate: %lu\n", l3rate);
 	}
 
 	recalculate_root_clocks();

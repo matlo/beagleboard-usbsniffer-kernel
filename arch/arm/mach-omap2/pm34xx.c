@@ -867,7 +867,7 @@ static struct platform_suspend_ops omap_pm_ops = {
  * into retention/off and thus allow full-chip retention/off.
  *
  **/
-static void __init omap3_iva_idle(void)
+void __init omap3_iva_idle(void)
 {
 	/* ensure IVA2 clock is disabled */
 	cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
