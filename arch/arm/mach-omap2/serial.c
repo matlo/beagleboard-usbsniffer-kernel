@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
@@ -49,7 +50,10 @@ struct omap_uart_state {
 	int num;
 	int can_sleep;
 	struct timer_list timer;
+	struct timer_list garbage_timer;
+	struct work_struct wakeup_work;
 	u32 timeout;
+	u8 garbage_ignore;
 
 	void __iomem *wk_st;
 	void __iomem *wk_en;
@@ -239,6 +243,11 @@ static inline void omap_uart_save_context(struct omap_uart_state *uart) {}
 static inline void omap_uart_restore_context(struct omap_uart_state *uart) {}
 #endif /* CONFIG_PM && CONFIG_ARCH_OMAP3 */
 
+#ifdef CONFIG_PM
+static void omap_uart_smart_idle_enable(struct omap_uart_state *uart,
+		int enable);
+#endif
+
 static inline void omap_uart_enable_clocks(struct omap_uart_state *uart)
 {
 	if (uart->clocked)
@@ -248,6 +257,9 @@ static inline void omap_uart_enable_clocks(struct omap_uart_state *uart)
 	clk_enable(uart->fck);
 	uart->clocked = 1;
 	omap_uart_restore_context(uart);
+#ifdef CONFIG_PM
+	omap_uart_smart_idle_enable(uart, 0);
+#endif
 }
 
 #ifdef CONFIG_PM
@@ -259,8 +271,13 @@ static inline void omap_uart_disable_clocks(struct omap_uart_state *uart)
 
 	omap_uart_save_context(uart);
 	uart->clocked = 0;
+	omap_uart_smart_idle_enable(uart, 1);
 	clk_disable(uart->ick);
 	clk_disable(uart->fck);
+	if (uart->garbage_ignore) {
+		del_timer(&uart->garbage_timer);
+		uart->garbage_ignore = 0;
+	}
 }
 
 static void omap_uart_enable_wakeup(struct omap_uart_state *uart)
@@ -316,7 +333,6 @@ static void omap_uart_block_sleep(struct omap_uart_state *uart)
 {
 	omap_uart_enable_clocks(uart);
 
-	omap_uart_smart_idle_enable(uart, 0);
 	uart->can_sleep = 0;
 	if (uart->timeout)
 		mod_timer(&uart->timer, jiffies + uart->timeout);
@@ -334,7 +350,6 @@ static void omap_uart_allow_sleep(struct omap_uart_state *uart)
 	if (!uart->clocked)
 		return;
 
-	omap_uart_smart_idle_enable(uart, 1);
 	uart->can_sleep = 1;
 	del_timer(&uart->timer);
 }
@@ -346,16 +361,43 @@ static void omap_uart_idle_timer(unsigned long data)
 	omap_uart_allow_sleep(uart);
 }
 
+static void omap_uart_garbage_timer(unsigned long data)
+{
+	struct omap_uart_state *uart = (struct omap_uart_state *)data;
+
+	uart->garbage_ignore = 0;
+}
+
+static void omap_uart_wakeup_work(struct work_struct *work)
+{
+	struct omap_uart_state *uart =
+		container_of(work, struct omap_uart_state, wakeup_work);
+
+	omap_uart_block_sleep(uart);
+
+	/* Set up garbage timer to ignore RX during first jiffy */
+	if (uart->timeout)
+		mod_timer(&uart->garbage_timer, jiffies + 1);
+}
+
 void omap_uart_prepare_idle(int num)
 {
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
 		if (num == uart->num && uart->can_sleep) {
-			omap_uart_disable_clocks(uart);
+			if (serial_read_reg(uart->p, UART_LSR) &
+					UART_LSR_TEMT)
+				omap_uart_disable_clocks(uart);
 			return;
 		}
 	}
+}
+
+static void serial_wakeup(struct omap_uart_state *uart)
+{
+	uart->garbage_ignore = 1;
+	schedule_work(&uart->wakeup_work);
 }
 
 void omap_uart_resume_idle(int num)
@@ -371,12 +413,12 @@ void omap_uart_resume_idle(int num)
 				u16 p = omap_ctrl_readw(uart->padconf);
 
 				if (p & OMAP3_PADCONF_WAKEUPEVENT0)
-					omap_uart_block_sleep(uart);
+					serial_wakeup(uart);
 			}
 
 			/* Check for normal UART wakeup */
 			if (__raw_readl(uart->wk_st) & uart->wk_mask)
-				omap_uart_block_sleep(uart);
+				serial_wakeup(uart);
 			return;
 		}
 	}
@@ -425,7 +467,14 @@ static irqreturn_t omap_uart_interrupt(int irq, void *dev_id)
 {
 	struct omap_uart_state *uart = dev_id;
 
-	omap_uart_block_sleep(uart);
+	/* Check for receive interrupt */
+	while (serial_read_reg(uart->p, UART_LSR) & UART_LSR_DR) {
+		omap_uart_block_sleep(uart);
+		if (uart->garbage_ignore)
+			serial_read_reg(uart->p, UART_RX);
+		else
+			break;
+	}
 
 	return IRQ_NONE;
 }
@@ -439,6 +488,9 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 	uart->timeout = DEFAULT_TIMEOUT;
 	setup_timer(&uart->timer, omap_uart_idle_timer,
 		    (unsigned long) uart);
+	setup_timer(&uart->garbage_timer, omap_uart_garbage_timer,
+		    (unsigned long) uart);
+	INIT_WORK(&uart->wakeup_work, omap_uart_wakeup_work);
 	if (uart->timeout)
 		mod_timer(&uart->timer, jiffies + uart->timeout);
 	omap_uart_smart_idle_enable(uart, 0);
@@ -503,15 +555,13 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 
 void omap_uart_enable_irqs(int enable)
 {
-	int ret;
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
 		if (enable)
-			ret = request_irq(uart->p->irq, omap_uart_interrupt,
-				IRQF_SHARED, "serial idle", (void *)uart);
+			enable_irq(uart->p->irq);
 		else
-			free_irq(uart->p->irq, (void *)uart);
+			disable_irq(uart->p->irq);
 	}
 }
 
