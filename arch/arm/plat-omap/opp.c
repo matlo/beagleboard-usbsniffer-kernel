@@ -208,7 +208,7 @@ struct omap_opp *opp_find_freq_floor(enum opp_t opp_type, unsigned long *freq)
 
 	*freq = prev_opp->rate;
 
-	return oppl;
+	return prev_opp;
 }
 
 /* wrapper to reuse converting opp_def to opp struct */
