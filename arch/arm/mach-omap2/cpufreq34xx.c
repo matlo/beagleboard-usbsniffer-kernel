@@ -82,7 +82,7 @@ static struct omap_opp_def __initdata omap36xx_mpu_rate_table[] = {
 	/* OPP3 - OPP-Turbo */
 	OMAP_OPP_DEF(false, 800000000, 1260000),
 	/* OPP4 - OPP-SB */
-	OMAP_OPP_DEF(false, 1000000000, 1310000),
+	OMAP_OPP_DEF(false, 1000000000, 1350000),
 	/* Terminator */
 	OMAP_OPP_DEF(0, 0, 0)
 };
@@ -104,7 +104,7 @@ static struct omap_opp_def __initdata omap36xx_dsp_rate_table[] = {
 	/* OPP3 - OPP-Turbo */
 	OMAP_OPP_DEF(false, 660000000, 1260000),
 	/* OPP4 - OPP-SB */
-	OMAP_OPP_DEF(false, 875000000, 1310000),
+	OMAP_OPP_DEF(false, 800000000, 1350000),
 	/* Terminator */
 	OMAP_OPP_DEF(0, 0, 0)
 };
