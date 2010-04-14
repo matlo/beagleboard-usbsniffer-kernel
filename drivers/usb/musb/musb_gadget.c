@@ -1765,24 +1765,6 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		otg_set_peripheral(musb->xceiv, &musb->g);
 
 		spin_unlock_irqrestore(&musb->lock, flags);
-
-		if (is_otg_enabled(musb)) {
-			DBG(3, "OTG startup...\n");
-
-			/* REVISIT:  funcall to other code, which also
-			 * handles power budgeting ... this way also
-			 * ensures HdrcStart is indirectly called.
-			 */
-			retval = usb_add_hcd(musb_to_hcd(musb), -1, 0);
-			if (retval < 0) {
-				DBG(1, "add_hcd failed, %d\n", retval);
-				spin_lock_irqsave(&musb->lock, flags);
-				otg_set_peripheral(musb->xceiv, NULL);
-				musb->gadget_driver = NULL;
-				musb->g.dev.driver = NULL;
-				spin_unlock_irqrestore(&musb->lock, flags);
-			}
-		}
 	}
 
 	return retval;
@@ -1877,14 +1859,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	} else
 		retval = -EINVAL;
 	spin_unlock_irqrestore(&musb->lock, flags);
-
-	if (is_otg_enabled(musb) && retval == 0) {
-		usb_remove_hcd(musb_to_hcd(musb));
-		/* FIXME we need to be able to register another
-		 * gadget driver here and have everything work;
-		 * that currently misbehaves.
-		 */
-	}
 
 	return retval;
 }
