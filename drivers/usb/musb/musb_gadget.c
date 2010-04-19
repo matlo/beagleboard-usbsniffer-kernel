@@ -307,10 +307,19 @@ static void txstate(struct musb *musb, struct musb_request *req)
 #ifdef CONFIG_USB_INVENTRA_DMA
 		{
 			size_t request_size;
+			size_t max_len = musb_ep->dma->max_len;
+
+			/*
+			 * use sdma for unaligned buffers on OMAP3630 which
+			 * can work only in mode-0 so restrict the request_size.
+			 */
+			if (cpu_is_omap3630() &&
+					(request->dma + request->actual) & 0x3)
+				max_len = musb_ep->hw_ep->max_packet_sz_tx;
 
 			/* setup DMA, then program endpoint CSR */
-			request_size = min(request->length,
-						musb_ep->dma->max_len);
+			request_size = min((request->length - request->actual),
+							max_len);
 			if (request_size < musb_ep->packet_sz)
 				musb_ep->dma->desired_mode = 0;
 			else
@@ -319,7 +328,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					musb_ep->dma->desired_mode,
-					request->dma, request_size);
+					(request->dma + request->actual),
+					request_size);
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
 					/*
@@ -462,7 +472,6 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 		u8	is_dma = 0;
 
 		if (dma && (csr & MUSB_TXCSR_DMAENAB)) {
-			is_dma = 1;
 			csr |= MUSB_TXCSR_P_WZC_BITS;
 			csr &= ~(MUSB_TXCSR_DMAENAB | MUSB_TXCSR_P_UNDERRUN |
 				 MUSB_TXCSR_TXPKTRDY);
@@ -470,6 +479,10 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			/* Ensure writebuffer is empty. */
 			csr = musb_readw(epio, MUSB_TXCSR);
 			request->actual += musb_ep->dma->actual_len;
+
+			if (request->actual == request->length)
+				is_dma = 1;
+
 			DBG(4, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
 				epnum, csr, musb_ep->dma->actual_len, request);
 		}
