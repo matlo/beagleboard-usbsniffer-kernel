@@ -214,6 +214,8 @@ static void configure_channel(struct dma_channel *channel,
 	u8 buffer_is_aligned = (dma_addr & 0x3) ? 0 : 1;
 	u8 use_sdma = 1;
 	u16 csr = 0;
+	u16 mult, resd, frame;
+	int data_type;
 
 	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
@@ -221,14 +223,37 @@ static void configure_channel(struct dma_channel *channel,
 	if (buffer_is_aligned && cpu_is_omap3630())
 		use_sdma = 0;
 
+	if (use_sdma) {
+		switch (dma_addr & 0x3) {
+		case 0:
+			data_type = OMAP_DMA_DATA_TYPE_S32;
+			mult = len / 4;
+			resd = len % 4;
+			break;
+		case 2:
+			data_type = OMAP_DMA_DATA_TYPE_S16;
+			mult = len / 2;
+			resd = len % 2;
+			break;
+		case 1:
+		case 3:
+		default:
+			data_type = OMAP_DMA_DATA_TYPE_S8;
+			mult = len;
+			resd = 0;
+			break;
+		}
+		frame = mult + resd;
+	}
+
 	if (musb_channel->sysdma_channel != -1 && use_sdma &&
 				!musb_channel->transmit) {
 		/* System DMA */
 		/* RX: set src = FIFO */
 		omap_set_dma_transfer_params(musb_channel->sysdma_channel,
-					OMAP_DMA_DATA_TYPE_S8,
-					len ? len : 1, 1, /* One frame */
-					OMAP_DMA_SYNC_ELEMENT,
+					data_type,
+					len ? frame : 1, 1, /* One frame */
+					OMAP_DMA_SYNC_FRAME,
 					OMAP24XX_DMA_NO_DEVICE,
 					0); /* Src Sync */
 
@@ -252,9 +277,9 @@ static void configure_channel(struct dma_channel *channel,
 		/* System DMA */
 		/* TX: set dst = FIFO */
 		omap_set_dma_transfer_params(musb_channel->sysdma_channel,
-					OMAP_DMA_DATA_TYPE_S8,
-					len ? len : 1, 1, /* One frame */
-					OMAP_DMA_SYNC_ELEMENT,
+					data_type,
+					len ? frame : 1, 1, /* One frame */
+					OMAP_DMA_SYNC_FRAME,
 					OMAP24XX_DMA_NO_DEVICE,
 					0); /* Src Sync */
 
