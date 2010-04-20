@@ -214,8 +214,8 @@ static void configure_channel(struct dma_channel *channel,
 	u8 buffer_is_aligned = (dma_addr & 0x3) ? 0 : 1;
 	u8 use_sdma = 1;
 	u16 csr = 0;
-	u16 mult, resd, frame;
-	int data_type;
+	u16 mult, resd, frame = len;
+	int data_type = OMAP_DMA_DATA_TYPE_S8;
 
 	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
