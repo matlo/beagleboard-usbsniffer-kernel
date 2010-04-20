@@ -37,5 +37,5 @@ unsigned long omap_twl_vsel_to_uv(const u8 vsel)
 u8 omap_twl_uv_to_vsel(unsigned long uv)
 {
 	/* Round up to higher voltage */
-	return (((uv + 99) / 100 - 6000) + 124) / 125;
+	return DIV_ROUND_UP(uv - 600000, 12500);
 }
