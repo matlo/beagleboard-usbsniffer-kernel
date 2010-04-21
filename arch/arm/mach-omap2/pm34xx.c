@@ -47,6 +47,7 @@
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 
+#include "smartreflex.h"
 #include "prm.h"
 #include "pm.h"
 #include "sdrc.h"
@@ -409,6 +410,15 @@ void omap_sram_idle(void)
 	if (pwrdm_read_pwrst(cam_pwrdm) == PWRDM_POWER_ON)
 		omap2_clkdm_deny_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 
+	/*
+	 * Disable smartreflex before entering WFI.
+	 * Only needed if we are going to enter retention or off.
+	 */
+	if (mpu_next_state <= PWRDM_POWER_RET)
+		disable_smartreflex(SR1);
+	if (core_next_state <= PWRDM_POWER_RET)
+		disable_smartreflex(SR2);
+
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(0);
@@ -495,6 +505,15 @@ void omap_sram_idle(void)
 	}
 	omap3_intc_resume_idle();
 
+	/*
+	 * Enable smartreflex after WFI. Only needed if we entered
+	 * retention or off
+	 */
+	if (mpu_next_state <= PWRDM_POWER_RET)
+		enable_smartreflex(SR1);
+	if (core_next_state <= PWRDM_POWER_RET)
+		enable_smartreflex(SR2);
+
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		if (per_next_state == PWRDM_POWER_OFF) {
@@ -521,6 +540,7 @@ void omap_sram_idle(void)
 		prm_clear_mod_reg_bits(OMAP3430_EN_IO, WKUP_MOD, PM_WKEN);
 		omap3_disable_io_chain();
 	}
+
 
 	pwrdm_post_transition();
 
@@ -1217,7 +1237,7 @@ static void __init configure_vc(void)
 	prm_write_mod_reg(OMAP3430_CMD1 | OMAP3430_RAV1, OMAP3430_GR_MOD,
 			  OMAP3_PRM_VC_CH_CONF_OFFSET);
 
-	prm_write_mod_reg(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN | OMAP3430_SREN,
+	prm_write_mod_reg(OMAP3430_MCODE_SHIFT | OMAP3430_HSEN,
 			  OMAP3430_GR_MOD,
 			  OMAP3_PRM_VC_I2C_CFG_OFFSET);
 
