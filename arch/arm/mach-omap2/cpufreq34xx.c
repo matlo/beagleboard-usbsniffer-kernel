@@ -25,6 +25,7 @@
 
 #include <plat/opp.h>
 #include <plat/cpu.h>
+#include "omap3-opp.h"
 
 static struct omap_opp_def __initdata omap34xx_mpu_rate_table[] = {
 	/* OPP1 */
@@ -109,8 +110,9 @@ static struct omap_opp_def __initdata omap36xx_dsp_rate_table[] = {
 	OMAP_OPP_DEF(0, 0, 0)
 };
 
-void __init omap3_pm_init_opp_table(void)
+int __init omap3_pm_init_opp_table(void)
 {
+	int i, r;
 	struct omap_opp_def **omap3_opp_def_list;
 	struct omap_opp_def *omap34xx_opp_def_list[] = {
 		omap34xx_mpu_rate_table,
@@ -122,12 +124,41 @@ void __init omap3_pm_init_opp_table(void)
 		omap36xx_l3_rate_table,
 		omap36xx_dsp_rate_table
 	};
+	enum opp_t omap3_opps[] = {
+		OPP_MPU,
+		OPP_L3,
+		OPP_DSP
+	};
 
 	omap3_opp_def_list = cpu_is_omap3630() ? omap36xx_opp_def_list :
 				omap34xx_opp_def_list;
 
-	BUG_ON(opp_init_list(OPP_MPU, omap3_opp_def_list[0]));
-	BUG_ON(opp_init_list(OPP_L3, omap3_opp_def_list[1]));
-	BUG_ON(opp_init_list(OPP_DSP, omap3_opp_def_list[2]));
+	for (i = 0; i < ARRAY_SIZE(omap3_opps); i++) {
+		r = opp_init_list(omap3_opps[i], omap3_opp_def_list[i]);
+		if (r)
+			break;
+	}
+	if (!r)
+		return 0;
+
+	/* Cascading error handling - disable all enabled OPPs */
+	pr_err("%s: Failed to register %d OPP type\n", __func__,
+		omap3_opps[i]);
+	i--;
+	while (i != -1) {
+		struct omap_opp *opp;
+		unsigned long freq = 0;
+
+		do {
+			opp = opp_find_freq_ceil(omap3_opps[i], &freq);
+			if (IS_ERR(opp))
+				break;
+			opp_disable(opp);
+			freq++;
+		} while (1);
+		i--;
+	}
+
+	return r;
 }
 

@@ -9,10 +9,11 @@
  * table after the basic initialization
  */
 #ifdef CONFIG_CPU_FREQ
-extern void omap3_pm_init_opp_table(void);
+extern int omap3_pm_init_opp_table(void);
 #else
-static inline void omap3_pm_init_opp_table(void)
+static inline int omap3_pm_init_opp_table(void)
 {
+	return -EINVAL;
 }
 #endif
 
