@@ -32,6 +32,7 @@
 
 #include "mux.h"
 #include "pm.h"
+#include "omap3-opp.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
@@ -103,6 +104,7 @@ static void __init rx51_init_irq(void)
 
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
+	omap3_pm_init_opp_table();
 	omap3_pm_init_cpuidle(rx51_cpuidle_params);
 	sdrc_params = rx51_get_sdram_timings();
 	omap2_init_common_hw(sdrc_params, sdrc_params);

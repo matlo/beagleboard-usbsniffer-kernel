@@ -18,22 +18,7 @@
 #include <linux/cpufreq.h>
 
 #include "powerdomain.h"
-
-/**
- * struct omap_opp - clock frequency-to-OPP ID table for DSP, MPU
- * @enabled: enabled if true, disabled if false
- * @rate: target clock rate
- * @opp_id: OPP ID
- * @min_vdd: minimum VDD1 voltage (in millivolts) for this OPP
- *
- * Operating performance point data.  Can vary by OMAP chip and board.
- */
-struct omap_opp {
-	bool enabled;
-	unsigned long rate;
-	u8 opp_id;
-	u16 min_vdd;
-};
+#include <plat/opp.h>
 
 extern struct omap_opp *mpu_opps;
 extern struct omap_opp *dsp_opps;
