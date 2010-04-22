@@ -39,6 +39,7 @@
 #include <plat/gpmc.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
+#include <plat/opp.h>
 
 #include <asm/tlbflush.h>
 
@@ -49,6 +50,7 @@
 #include "prm.h"
 #include "pm.h"
 #include "sdrc.h"
+#include "omap3-opp.h"
 
 /* Scratchpad offsets */
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0x31
@@ -77,6 +79,52 @@ static int (*_omap_save_secure_sram)(u32 *addr);
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
 static struct powerdomain *cam_pwrdm;
+
+static struct omap_opp_def __initdata omap34xx_mpu_rate_table[] = {
+	/* OPP1 */
+	OMAP_OPP_DEF(true, 125000000, 975000),
+	/* OPP2 */
+	OMAP_OPP_DEF(true, 250000000, 1075000),
+	/* OPP3 */
+	OMAP_OPP_DEF(true, 500000000, 1200000),
+	/* OPP4 */
+	OMAP_OPP_DEF(true, 550000000, 1270000),
+	/* OPP5 */
+	OMAP_OPP_DEF(true, 600000000, 1350000),
+	/* Terminator */
+	OMAP_OPP_DEF(0, 0, 0)
+};
+
+static struct omap_opp_def __initdata omap34xx_l3_rate_table[] = {
+	/* OPP1 */
+	OMAP_OPP_DEF(false, 0, 975000),
+	/* OPP2 */
+	OMAP_OPP_DEF(true, 83000000, 1050000),
+	/* OPP3 */
+	OMAP_OPP_DEF(true, 166000000, 1150000),
+	/* Terminator */
+	OMAP_OPP_DEF(0, 0, 0)
+};
+
+static struct omap_opp_def __initdata omap34xx_dsp_rate_table[] = {
+	/* OPP1 */
+	OMAP_OPP_DEF(true, 90000000, 975000),
+	/* OPP2 */
+	OMAP_OPP_DEF(true, 180000000, 1075000),
+	/* OPP3 */
+	OMAP_OPP_DEF(true, 360000000, 1200000),
+	/* OPP4 */
+	OMAP_OPP_DEF(true, 400000000, 1270000),
+	/* OPP5 */
+	OMAP_OPP_DEF(true, 430000000, 1350000),
+	/* Terminator */
+	OMAP_OPP_DEF(0, 0, 0)
+};
+
+/* OMAP3 Rate Table */
+struct omap_opp *omap3_mpu_rate_table;
+struct omap_opp *omap3_dsp_rate_table;
+struct omap_opp *omap3_l3_rate_table;
 
 static inline void omap3_per_save_context(void)
 {
@@ -1116,6 +1164,26 @@ err2:
 		kfree(pwrst);
 	}
 	return ret;
+}
+
+void __init omap3_pm_init_opp_table(void)
+{
+	int i;
+	struct omap_opp_def *omap34xx_opp_def_list[] = {
+		omap34xx_mpu_rate_table,
+		omap34xx_l3_rate_table,
+		omap34xx_dsp_rate_table
+	};
+	struct omap_opp **omap3_rate_tables[] = {
+		&omap3_mpu_rate_table,
+		&omap3_l3_rate_table,
+		&omap3_dsp_rate_table
+	};
+	for (i = 0; i < ARRAY_SIZE(omap3_rate_tables); i++) {
+		*omap3_rate_tables[i] = opp_init_list(omap34xx_opp_def_list[i]);
+		/* We dont want half configured system at the moment */
+		BUG_ON(IS_ERR(omap3_rate_tables[i]));
+	}
 }
 
 late_initcall(omap3_pm_init);
