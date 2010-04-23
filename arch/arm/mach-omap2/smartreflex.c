@@ -152,12 +152,11 @@ static u8 get_vdd1_opp(void)
 	struct omap_opp *opp;
 	unsigned long freq;
 
-	if (sr1.vdd_opp_clk == NULL || IS_ERR(sr1.vdd_opp_clk) ||
-							mpu_opps == NULL)
+	if (sr1.vdd_opp_clk == NULL || IS_ERR(sr1.vdd_opp_clk))
 		return 0;
 
 	freq = sr1.vdd_opp_clk->rate;
-	opp = opp_find_freq_ceil(mpu_opps, &freq);
+	opp = opp_find_freq_ceil(OPP_MPU, &freq);
 	if (IS_ERR(opp))
 		return 0;
 	/*
@@ -176,12 +175,11 @@ static u8 get_vdd2_opp(void)
 	struct omap_opp *opp;
 	unsigned long freq;
 
-	if (sr2.vdd_opp_clk == NULL || IS_ERR(sr2.vdd_opp_clk) ||
-							l3_opps == NULL)
+	if (sr2.vdd_opp_clk == NULL || IS_ERR(sr2.vdd_opp_clk))
 		return 0;
 
 	freq = sr2.vdd_opp_clk->rate;
-	opp = opp_find_freq_ceil(l3_opps, &freq);
+	opp = opp_find_freq_ceil(OPP_L3, &freq);
 	if (IS_ERR(opp))
 		return 0;
 
@@ -310,7 +308,7 @@ static void sr_configure_vp(int srid)
 		if (!target_opp_no)
 			target_opp_no = VDD1_OPP3;
 
-		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_MPU, target_opp_no);
 		BUG_ON(!opp); /* XXX ugh */
 
 		uvdc = opp_get_voltage(opp);
@@ -359,7 +357,7 @@ static void sr_configure_vp(int srid)
 		if (!target_opp_no)
 			target_opp_no = VDD2_OPP3;
 
-		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_L3, target_opp_no);
 		BUG_ON(!opp); /* XXX ugh */
 
 		uvdc = opp_get_voltage(opp);
@@ -472,7 +470,7 @@ static int sr_reset_voltage(int srid)
 			return 1;
 		}
 
-		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_MPU, target_opp_no);
 		if (!opp)
 			return 1;
 
@@ -490,7 +488,7 @@ static int sr_reset_voltage(int srid)
 			return 1;
 		}
 
-		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_L3, target_opp_no);
 		if (!opp)
 			return 1;
 
@@ -546,11 +544,6 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 	int uvdc;
 	char vsel;
 
-	if (!(mpu_opps && l3_opps)) {
-		pr_notice("VSEL values not found\n");
-		return false;
-	}
-
 	sr->req_opp_no = target_opp_no;
 
 	if (sr->srid == SR1) {
@@ -575,7 +568,7 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 			break;
 		}
 
-		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_MPU, target_opp_no);
 		if (!opp)
 			return false;
 	} else {
@@ -594,7 +587,7 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 			break;
 		}
 
-		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		opp = opp_find_by_opp_id(OPP_L3, target_opp_no);
 		if (!opp)
 			return false;
 	}
@@ -1009,12 +1002,6 @@ static int __init omap3_sr_init(void)
 {
 	int ret = 0;
 	u8 RdReg;
-
-	/* Exit if OPP tables are not defined */
-        if (!(mpu_opps && l3_opps)) {
-                pr_err("SR: OPP rate tables not defined for platform, not enabling SmartReflex\n");
-		return -ENODEV;
-        }
 
 	/* Enable SR on T2 */
 	ret = twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &RdReg,
