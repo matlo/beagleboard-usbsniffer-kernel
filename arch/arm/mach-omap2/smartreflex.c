@@ -168,7 +168,7 @@ static u8 get_vdd1_opp(void)
 		pr_warning("%s: Available freq %ld != dpll freq %ld.\n",
 			   __func__, freq, sr1.vdd_opp_clk->rate);
 
-	return opp->opp_id;
+	return opp_get_opp_id(opp);
 }
 
 static u8 get_vdd2_opp(void)
@@ -192,7 +192,7 @@ static u8 get_vdd2_opp(void)
 	if (unlikely(freq != sr2.vdd_opp_clk->rate))
 		pr_warning("%s: Available freq %ld != dpll freq %ld.\n",
 			   __func__, freq, sr2.vdd_opp_clk->rate);
-	return opp->opp_id;
+	return opp_get_opp_id(opp);
 }
 
 
