@@ -32,6 +32,7 @@
 
 #if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 #include <plat/omap-pm.h>
+#include <plat/opp.h>
 #endif
 
 #define VERY_HI_RATE	900000000
