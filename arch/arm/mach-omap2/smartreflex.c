@@ -30,7 +30,7 @@
 #include <plat/omap34xx.h>
 #include <plat/control.h>
 #include <plat/clock.h>
-#include <plat/omap-pm.h>
+#include <plat/opp.h>
 
 #include "prm.h"
 #include "smartreflex.h"
