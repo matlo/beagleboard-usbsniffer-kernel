@@ -31,6 +31,7 @@
 #include <plat/control.h>
 #include <plat/clock.h>
 #include <plat/opp.h>
+#include <plat/opp_twl_tps.h>
 
 #include "prm.h"
 #include "smartreflex.h"
@@ -300,15 +301,20 @@ static void sr_configure_vp(int srid)
 {
 	u32 vpconfig;
 	u32 vsel;
+	int uvdc;
 	u32 target_opp_no;
+	struct omap_opp *opp;
 
 	if (srid == SR1) {
 		target_opp_no = get_vdd1_opp();
 		if (!target_opp_no)
-			/* Assume Nominal OPP as current OPP unknown */
-			vsel = mpu_opps[VDD1_OPP3].vsel;
-		else
-			vsel = mpu_opps[target_opp_no].vsel;
+			target_opp_no = VDD1_OPP3;
+
+		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		BUG_ON(!opp); /* XXX ugh */
+
+		uvdc = opp_get_voltage(opp);
+		vsel = omap_twl_uv_to_vsel(uvdc);
 
 		vpconfig = PRM_VP1_CONFIG_ERROROFFSET |
 			PRM_VP1_CONFIG_ERRORGAIN |
@@ -351,10 +357,13 @@ static void sr_configure_vp(int srid)
 	} else if (srid == SR2) {
 		target_opp_no = get_vdd2_opp();
 		if (!target_opp_no)
-			/* Assume Nominal OPP */
-			vsel = l3_opps[VDD2_OPP3].vsel;
-		else
-			vsel = l3_opps[target_opp_no].vsel;
+			target_opp_no = VDD2_OPP3;
+
+		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		BUG_ON(!opp); /* XXX ugh */
+
+		uvdc = opp_get_voltage(opp);
+		vsel = omap_twl_uv_to_vsel(uvdc);
 
 		vpconfig = PRM_VP2_CONFIG_ERROROFFSET |
 			PRM_VP2_CONFIG_ERRORGAIN |
@@ -446,6 +455,8 @@ static void sr_configure(struct omap_sr *sr)
 
 static int sr_reset_voltage(int srid)
 {
+	struct omap_opp *opp;
+	unsigned long uvdc;
 	u32 target_opp_no, vsel = 0;
 	u32 reg_addr = 0;
 	u32 loop_cnt = 0, retries_cnt = 0;
@@ -460,7 +471,14 @@ static int sr_reset_voltage(int srid)
 			pr_info("Current OPP unknown: Cannot reset voltage\n");
 			return 1;
 		}
-		vsel = mpu_opps[target_opp_no].vsel;
+
+		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		if (!opp)
+			return 1;
+
+		uvdc = opp_get_voltage(opp);
+		vsel = omap_twl_uv_to_vsel(uvdc);
+
 		reg_addr = R_VDD1_SR_CONTROL;
 		prm_vp1_voltage = prm_read_mod_reg(OMAP3430_GR_MOD,
 						OMAP3_PRM_VP1_VOLTAGE_OFFSET);
@@ -471,7 +489,14 @@ static int sr_reset_voltage(int srid)
 			pr_info("Current OPP unknown: Cannot reset voltage\n");
 			return 1;
 		}
-		vsel = l3_opps[target_opp_no].vsel;
+
+		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		if (!opp)
+			return 1;
+
+		uvdc = opp_get_voltage(opp);
+		vsel = omap_twl_uv_to_vsel(uvdc);
+
 		reg_addr = R_VDD2_SR_CONTROL;
 		prm_vp2_voltage = prm_read_mod_reg(OMAP3430_GR_MOD,
 						OMAP3_PRM_VP2_VOLTAGE_OFFSET);
@@ -517,6 +542,9 @@ static int sr_reset_voltage(int srid)
 static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 {
 	u32 nvalue_reciprocal, v;
+	struct omap_opp *opp;
+	int uvdc;
+	char vsel;
 
 	if (!(mpu_opps && l3_opps)) {
 		pr_notice("VSEL values not found\n");
@@ -546,6 +574,10 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 			nvalue_reciprocal = sr->opp3_nvalue;
 			break;
 		}
+
+		opp = opp_find_by_opp_id(mpu_opps, target_opp_no);
+		if (!opp)
+			return false;
 	} else {
 		switch (target_opp_no) {
 		case 3:
@@ -561,6 +593,10 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 			nvalue_reciprocal = sr->opp3_nvalue;
 			break;
 		}
+
+		opp = opp_find_by_opp_id(l3_opps, target_opp_no);
+		if (!opp)
+			return false;
 	}
 
 	if (nvalue_reciprocal == 0) {
@@ -576,13 +612,16 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 			(ERRCONFIG_VPBOUNDINTEN | ERRCONFIG_VPBOUNDINTST),
 			(ERRCONFIG_VPBOUNDINTEN | ERRCONFIG_VPBOUNDINTST));
 
+	uvdc = opp_get_voltage(opp);
+	vsel = omap_twl_uv_to_vsel(uvdc);
+
 	if (sr->srid == SR1) {
 		/* set/latch init voltage */
 		v = prm_read_mod_reg(OMAP3430_GR_MOD,
 				     OMAP3_PRM_VP1_CONFIG_OFFSET);
 		v &= ~(OMAP3430_INITVOLTAGE_MASK | OMAP3430_INITVDD);
-		v |= mpu_opps[target_opp_no].vsel <<
-			OMAP3430_INITVOLTAGE_SHIFT;
+
+		v |= vsel << OMAP3430_INITVOLTAGE_SHIFT;
 		prm_write_mod_reg(v, OMAP3430_GR_MOD,
 				  OMAP3_PRM_VP1_CONFIG_OFFSET);
 		/* write1 to latch */
@@ -599,8 +638,7 @@ static int sr_enable(struct omap_sr *sr, u32 target_opp_no)
 		v = prm_read_mod_reg(OMAP3430_GR_MOD,
 				     OMAP3_PRM_VP2_CONFIG_OFFSET);
 		v &= ~(OMAP3430_INITVOLTAGE_MASK | OMAP3430_INITVDD);
-		v |= l3_opps[target_opp_no].vsel <<
-			OMAP3430_INITVOLTAGE_SHIFT;
+		v |= vsel << OMAP3430_INITVOLTAGE_SHIFT;
 		prm_write_mod_reg(v, OMAP3430_GR_MOD,
 				  OMAP3_PRM_VP2_CONFIG_OFFSET);
 		/* write1 to latch */
