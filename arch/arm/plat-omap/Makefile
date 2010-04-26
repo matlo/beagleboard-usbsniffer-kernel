@@ -12,6 +12,13 @@ obj-  :=
 # OCPI interconnect support for 1710, 1610 and 5912
 obj-$(CONFIG_ARCH_OMAP16XX) += ocpi.o
 
+# OPP support in (OMAP3+ only at the moment)
+# XXX The OPP TWL/TPS code should only be included when a TWL/TPS
+# PMIC is selected.
+ifdef CONFIG_CPU_FREQ
+obj-$(CONFIG_ARCH_OMAP3) += opp.o opp_twl_tps.o
+endif
+
 # omap_device support (OMAP2+ only at the moment)
 obj-$(CONFIG_ARCH_OMAP2) += omap_device.o
 obj-$(CONFIG_ARCH_OMAP3) += omap_device.o
