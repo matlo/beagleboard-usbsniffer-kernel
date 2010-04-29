@@ -263,6 +263,8 @@ static int dvi_enabled;
 
 static void __init am3517_evm_display_init(void)
 {
+#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
+		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
 	int r;
 
 	omap_mux_init_gpio(LCD_PANEL_PWR, OMAP_PIN_INPUT_PULLUP);
@@ -303,6 +305,9 @@ err_2:
 	gpio_free(LCD_PANEL_PWM);
 err_1:
 	gpio_free(LCD_PANEL_BKLIGHT_PWR);
+#else
+	printk(KERN_INFO "Display option not selected\n");
+#endif
 }
 
 static int am3517_evm_panel_enable_lcd(struct omap_dss_device *dssdev)
