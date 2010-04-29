@@ -60,6 +60,12 @@
 /* needed by omap3_core_dpll_m2_set_rate() */
 struct clk *sdrc_ick_p, *arm_fck_p;
 
+/*
+ * VDD1 and VDD2 OPPs derived from the bootarg 'mpurate'
+ */
+unsigned int vdd1_opp = 0;
+unsigned int vdd2_opp = 0;
+
 /**
  * omap3430es2_clk_ssi_find_idlest - return CM_IDLEST info for SSI
  * @clk: struct clk * being enabled
@@ -428,21 +434,109 @@ static void __init omap2_clk_iva_init_to_idle(void)
 /*
  * Switch the MPU rate if specified on cmdline.
  * We cannot do this early until cmdline is parsed.
+ *
+ * Beyond a certain limit, frequency cannot be increased without corresponding
+ * increase in voltage. This tolerance varies across processors and, possibly,
+ * their revisions.
+ * This function only derives the target OPP based on bootarg 'mpurate'.
+ * Actual change in the frequency is deferred until the voltage corresponding
+ * to the OPP has been set.
  */
 static int __init omap2_clk_arch_init(void)
+{
+	struct omap_opp *opp_table;
+	short valid=0, err=0, i;
+
+	if (!mpurate)
+		return -EINVAL;
+
+	/*
+	 * Check if OPP tables are defined.
+	 */
+	if (WARN((!mpu_opps), "OPP table not defined for MPU\n"))
+		err = 1;
+
+	if (omap3_has_iva())
+		if (WARN((!dsp_opps), "OPP table not defined for DSP\n"))
+			err = 1;
+
+	if (WARN((!l3_opps), "OPP table not defined for L3\n"))
+		err = 1;
+
+	if (err)
+		return -ENOENT;
+
+	/*
+	 * Check if silicon supports specified mpurate.
+	 * Else, use the next highest.
+	 */
+	if (!cpu_is_omap3630() && (mpurate == S720M) && !omap3_has_720m()) {
+		mpurate = S600M;
+		pr_err("This silicon doesn't support 720MHz\n");
+	}
+
+	/*
+	 * Select VDD1 OPP corresponding to mpurate
+	 */
+	opp_table = mpu_opps;
+
+	for (i = 1; opp_table[i].opp_id <= get_max_vdd1(); i++) {
+		if (opp_table[i].rate == mpurate) {
+			valid = 1;
+			break;
+		}
+	}
+
+	if (valid) {
+		vdd1_opp = opp_table[i].opp_id;
+	} else {
+		pr_err("Invalid MPU rate (%u)\n", mpurate);
+		return -EINVAL;
+	}
+
+	/*
+	 * Match lowest OPP setting for VDD1 with lowest OPP for VDD2 as well.
+	 */
+	if (vdd1_opp == VDD1_OPP1) {
+		if (cpu_is_omap3630())
+			vdd2_opp = VDD2_OPP1;
+		else
+			vdd2_opp = VDD2_OPP2;
+	} else {
+		vdd2_opp = VDD2_OPP2;
+	}
+
+	pr_info("Target VDD1 OPP = %d, VDD2 OPP = %d\n", vdd1_opp, vdd2_opp);
+
+	return 0;
+}
+arch_initcall(omap2_clk_arch_init);
+
+
+int __init omap2_clk_set_freq(void)
 {
 	struct clk *osc_sys_ck, *dpll1_ck, *arm_fck, *core_ck;
 	struct clk *dpll2_ck, *iva2_ck, *dpll3_m2_ck;
 	unsigned long osc_sys_rate;
 	unsigned long dsprate, l3rate;
-	struct omap_opp *opp_table;
-	short opp=0, valid=0, i;
 	short err = 0 ;
 	int l3div;
 
-	if (!mpurate)
-		return -EINVAL;
+	/*
+	 * Check if any processing is required.
+	 */
+	if ((vdd1_opp == 0) && (vdd2_opp == 0))
+		return 0;
 
+	if (WARN((vdd1_opp == 0), "VDD1 OPP is not set.\n"))
+		err = 1;
+
+	if (WARN((vdd2_opp == 0), "VDD2 OPP is not set.\n"))
+		err = 1;
+
+	/*
+	 * Attempt to get the required clocks
+	 */
 	dpll1_ck = clk_get(NULL, "dpll1_ck");
 	if (WARN(IS_ERR(dpll1_ck), "Failed to get dpll1_ck.\n"))
 		err = 1;
@@ -468,78 +562,44 @@ static int __init omap2_clk_arch_init(void)
 		err = 1;
 
 	dpll3_m2_ck = clk_get(NULL, "dpll3_m2_ck");
-	if (dpll3_m2_ck == NULL) {
+	if (WARN(IS_ERR("dpll3_m2_ck"), "Failed to get dpll3_m2_ck.\n"))
 		err = 1;
-		pr_err("*** Failed to get dpll3_m2_ck.\n");
-	}
 
 	if (err)
 		return -ENOENT;
 
-	if (!cpu_is_omap3630() && (mpurate == S720M) && !omap3_has_720m()) {
-		/*
-		 * Silicon doesn't support this rate.
-		 * Use the next highest.
-		 */
-		mpurate = S600M;
-		pr_err("*** This silicon doesn't support 720MHz\n");
-	}
-
-	/* Check if mpurate is valid */
-	if (mpu_opps) {
-		opp_table = mpu_opps;
-
-		for (i = 1; opp_table[i].opp_id <= get_max_vdd1(); i++) {
-			if (opp_table[i].rate == mpurate) {
-				valid = 1;
-				break;
-			}
-		}
-
-		if (valid) {
-			opp = opp_table[i].opp_id;
-		} else {
-			pr_err("*** Invalid MPU rate (%u)\n", mpurate);
-			return 1;
-		}
-	}
-
+	/*
+	 * Set MPU frequency
+	 */
+	mpurate = mpu_opps [vdd1_opp].rate;
 	if (clk_set_rate(dpll1_ck, mpurate))
-		printk(KERN_ERR "*** Unable to set MPU rate\n");
+		pr_err("Unable to set MPU frequency (%lu)\n", mpurate);
 
-	/* Get dsprate corresponding to the opp */
-	if ((cpu_is_omap3430()
-			|| cpu_is_omap3530()
-			|| cpu_is_omap3525()
-			|| cpu_is_omap3630())
-		&& (dsp_opps)
-		&& (opp >= get_min_vdd1()) && (opp <= get_max_vdd1())) {
-		opp_table = dsp_opps;
-
-		for (i=0;  opp_table[i].opp_id <= get_max_vdd1(); i++)
-			if (opp_table[i].opp_id == opp)
-				break;
-
-		dsprate = opp_table[i].rate;
-
+	/*
+	 * Set DSP frequency
+	 */
+	if (omap3_has_iva()) {
 		omap2_clk_iva_init_to_idle();
 
+		dsprate = dsp_opps [vdd1_opp].rate;
 		if (clk_set_rate(dpll2_ck, dsprate))
-			pr_err("*** Unable to set IVA2 rate\n");
+			pr_err("Unable to set DSP frequency (%lu)\n", dsprate);
 	}
 
-	/* Select VDD2_OPP2, if VDD1_OPP1 is chosen */
-	if (!cpu_is_omap3630() && (opp == VDD1_OPP1)) {
-		l3div = cm_read_mod_reg(CORE_MOD, CM_CLKSEL) &
+	/*
+	 * Set L3 frequency
+	 */
+	l3div  = cm_read_mod_reg(CORE_MOD, CM_CLKSEL) &
 			OMAP3430_CLKSEL_L3_MASK;
 
-		l3rate = l3_opps[VDD2_OPP2].rate * l3div;
-		if (clk_set_rate(dpll3_m2_ck, l3rate))
-			pr_err("*** Unable to set L3 rate(%lu)\n", l3rate);
-		else
-			pr_info("Switching to L3 rate: %lu\n", l3rate);
-	}
+	l3rate = l3_opps[vdd2_opp].rate * l3div;
 
+	if (clk_set_rate(dpll3_m2_ck, l3rate))
+		pr_err("Unable to set L3 frequency (%lu)\n", l3rate);
+
+	/*
+	 * Re-calculate the clocks
+	 */
 	recalculate_root_clocks();
 
 	osc_sys_rate = clk_get_rate(osc_sys_ck);
@@ -550,14 +610,14 @@ static int __init omap2_clk_arch_init(void)
 		((osc_sys_rate / 100000) % 10),
 		(clk_get_rate(core_ck) / 1000000),
 		(clk_get_rate(arm_fck) / 1000000));
-	pr_info("IVA2 clocking rate: %ld MHz\n",
-	       (clk_get_rate(iva2_ck) / 1000000)) ;
+
+	if (omap3_has_iva()) {
+		pr_info("IVA2 clocking rate: %ld MHz\n",
+		       (clk_get_rate(iva2_ck) / 1000000)) ;
+	}
 
 	calibrate_delay();
 
 	return 0;
 }
-arch_initcall(omap2_clk_arch_init);
-
-
 #endif

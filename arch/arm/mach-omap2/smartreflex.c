@@ -42,6 +42,16 @@
 #define SWCALC_OPP6_DELTA_NNT	379
 #define SWCALC_OPP6_DELTA_PNT	227
 
+
+/*
+ * VDD1 and VDD2 OPPs derived from the bootarg 'mpurate'
+ */
+extern unsigned int vdd1_opp;
+extern unsigned int vdd2_opp;
+
+extern int __init omap2_clk_set_freq(void);
+
+
 struct omap_sr {
 	int		srid;
 	int		is_sr_reset;
@@ -349,7 +359,7 @@ static void sr_configure_vp(int srid)
 	u32 target_opp_no;
 
 	if (srid == SR1) {
-		target_opp_no = get_vdd1_opp();
+		target_opp_no = vdd1_opp;
 		if (!target_opp_no)
 			/* Assume Nominal OPP as current OPP unknown */
 			vsel = mpu_opps[VDD1_OPP3].vsel;
@@ -404,7 +414,7 @@ static void sr_configure_vp(int srid)
 				       OMAP3_PRM_VP1_CONFIG_OFFSET);
 
 	} else if (srid == SR2) {
-		target_opp_no = get_vdd2_opp();
+		target_opp_no = vdd2_opp;
 		if (!target_opp_no)
 			/* Assume Nominal OPP */
 			vsel = l3_opps[VDD2_OPP3].vsel;
@@ -1032,8 +1042,6 @@ static struct kobj_attribute sr_vdd2_autocomp = {
 	.store = omap_sr_vdd2_autocomp_store,
 };
 
-
-
 static int __init omap3_sr_init(void)
 {
 	int ret = 0;
@@ -1069,7 +1077,11 @@ static int __init omap3_sr_init(void)
 	sr_set_nvalues(&sr2);
 	sr_configure_vp(SR2);
 
-	pr_info("SmartReflex driver initialized\n");
+	/*
+	 * With voltages matching target OPP, set corresponding frequency.
+	 */
+	if (cpu_is_omap34xx())
+		omap2_clk_set_freq();
 
 	ret = sysfs_create_file(power_kobj, &sr_vdd1_autocomp.attr);
 	if (ret)
@@ -1078,6 +1090,8 @@ static int __init omap3_sr_init(void)
 	ret = sysfs_create_file(power_kobj, &sr_vdd2_autocomp.attr);
 	if (ret)
 		pr_err("sysfs_create_file failed: %d\n", ret);
+
+	pr_info("SmartReflex driver initialized\n");
 
 	return 0;
 }
