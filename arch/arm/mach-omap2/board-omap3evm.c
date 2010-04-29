@@ -403,6 +403,21 @@ static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
 	}
 	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 0);
 
+	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
+	 * pins for DSS, but since thes GPIO pins are reuired for LCD
+	 * orientation we must change the mux configuration to GPIO for
+	 * SYS_BOOT[2-3]
+	 */
+	if (cpu_is_omap3630()) {
+		omap_mux_init_signal("sys_boot0", OMAP_MUX_MODE4 |
+				OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("sys_boot1", OMAP_MUX_MODE4 |
+				OMAP_PIN_OUTPUT);
+
+		gpio_direction_output(OMAP3EVM_LCD_PANEL_LR, 1);
+		gpio_direction_output(OMAP3EVM_LCD_PANEL_UD, 1);
+	}
+
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
 		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
 	else
@@ -463,6 +478,16 @@ static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
 	}
 
 	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 1);
+
+	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
+	 * pins for DSS, but since thes GPIO pins are reuired for LCD
+	 * orientation we must change the mux configuration to GPIO for
+	 * SYS_BOOT[2-3]
+	 */
+	if (cpu_is_omap3630()) {
+		omap_mux_init_signal("sys_boot0", OMAP_MUX_MODE3);
+		omap_mux_init_signal("sys_boot1", OMAP_MUX_MODE3);
+	}
 
 	dvi_enabled = 1;
 	return 0;
@@ -1043,6 +1068,19 @@ static struct omap_board_mux board_mux[] __initdata = {
 				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
 				OMAP_PIN_OFF_WAKEUPENABLE),
 #endif
+	OMAP3_MUX(DSS_DATA18, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA19, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA21, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA23, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT0, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT1, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT3, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT4, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT5, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
