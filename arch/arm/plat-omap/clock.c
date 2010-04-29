@@ -179,6 +179,7 @@ EXPORT_SYMBOL(clk_get_parent);
 
 unsigned int __initdata mpurate;
 
+
 /*
  * By default we use the rate set by the bootloader.
  * You can override this with mpurate= cmdline option.
@@ -190,7 +191,7 @@ static int __init omap_clk_setup(char *str)
 	if (!mpurate)
 		return 1;
 
-	if (mpurate < 1000)
+	if (mpurate < 2000)
 		mpurate *= 1000000;
 
 	return 1;
