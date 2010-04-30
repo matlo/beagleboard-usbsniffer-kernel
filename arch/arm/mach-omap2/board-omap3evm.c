@@ -405,14 +405,12 @@ static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
 
 	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
 	 * pins for DSS, but since thes GPIO pins are reuired for LCD
-	 * orientation we must change the mux configuration to GPIO for
-	 * SYS_BOOT[2-3]
+	 * orientation we must change the mux configuration to GPIO[2-3] for
+	 * SYS_BOOT[0-1]
 	 */
 	if (cpu_is_omap3630()) {
-		omap_mux_init_signal("sys_boot0", OMAP_MUX_MODE4 |
-				OMAP_PIN_OUTPUT);
-		omap_mux_init_signal("sys_boot1", OMAP_MUX_MODE4 |
-				OMAP_PIN_OUTPUT);
+		omap_mux_set_gpio(OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT, 2);
+		omap_mux_set_gpio(OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT, 3);
 
 		gpio_direction_output(OMAP3EVM_LCD_PANEL_LR, 1);
 		gpio_direction_output(OMAP3EVM_LCD_PANEL_UD, 1);
@@ -481,12 +479,12 @@ static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
 
 	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
 	 * pins for DSS, but since thes GPIO pins are reuired for LCD
-	 * orientation we must change the mux configuration to GPIO for
-	 * SYS_BOOT[2-3]
+	 * orientation we must change the mux configuration to GPIO[2-3] for
+	 * SYS_BOOT[0-1]
 	 */
 	if (cpu_is_omap3630()) {
-		omap_mux_init_signal("sys_boot0", OMAP_MUX_MODE3);
-		omap_mux_init_signal("sys_boot1", OMAP_MUX_MODE3);
+		omap_mux_set_gpio(OMAP_MUX_MODE3, 2);
+		omap_mux_set_gpio(OMAP_MUX_MODE3, 3);
 	}
 
 	dvi_enabled = 1;
