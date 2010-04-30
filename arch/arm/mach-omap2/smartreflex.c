@@ -359,12 +359,16 @@ static void sr_configure_vp(int srid)
 	u32 target_opp_no;
 
 	if (srid == SR1) {
-		target_opp_no = vdd1_opp;
+		if (vdd1_opp == 0)
+			target_opp_no = get_vdd1_opp();
+		else
+			target_opp_no = vdd1_opp;
+
 		if (!target_opp_no)
 			/* Assume Nominal OPP as current OPP unknown */
-			vsel = mpu_opps[VDD1_OPP3].vsel;
-		else
-			vsel = mpu_opps[target_opp_no].vsel;
+			target_opp_no = VDD1_OPP3;
+
+		vsel = mpu_opps[target_opp_no].vsel;
 
 		vpconfig = PRM_VP1_CONFIG_ERROROFFSET |
 			PRM_VP1_CONFIG_ERRORGAIN |
@@ -414,12 +418,20 @@ static void sr_configure_vp(int srid)
 				       OMAP3_PRM_VP1_CONFIG_OFFSET);
 
 	} else if (srid == SR2) {
-		target_opp_no = vdd2_opp;
-		if (!target_opp_no)
-			/* Assume Nominal OPP */
-			vsel = l3_opps[VDD2_OPP3].vsel;
+		if (vdd2_opp == 0)
+			target_opp_no = get_vdd2_opp();
 		else
-			vsel = l3_opps[target_opp_no].vsel;
+			target_opp_no = vdd2_opp;
+
+		if (!target_opp_no) {
+			/* Assume Nominal OPP */
+			if (cpu_is_omap3630())
+				target_opp_no = VDD2_OPP2;
+			else
+				target_opp_no = VDD2_OPP3;
+		}
+
+		vsel = l3_opps[target_opp_no].vsel;
 
 		/*
 		 * Update the 'ON' voltage levels based on the VSEL.

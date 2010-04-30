@@ -503,7 +503,13 @@ static int __init omap2_clk_arch_init(void)
 		else
 			vdd2_opp = VDD2_OPP2;
 	} else {
-		vdd2_opp = VDD2_OPP2;
+		/*
+		 * Use the highest OPP
+		 */
+		if (cpu_is_omap3630())
+			vdd2_opp = VDD2_OPP2;
+		else
+			vdd2_opp = VDD2_OPP3;
 	}
 
 	pr_info("Target VDD1 OPP = %d, VDD2 OPP = %d\n", vdd1_opp, vdd2_opp);
@@ -573,7 +579,7 @@ int __init omap2_clk_set_freq(void)
 	 */
 	mpurate = mpu_opps [vdd1_opp].rate;
 	if (clk_set_rate(dpll1_ck, mpurate))
-		pr_err("Unable to set MPU frequency (%lu)\n", mpurate);
+		pr_err("Unable to set MPU frequency (%u)\n", mpurate);
 
 	/*
 	 * Set DSP frequency
