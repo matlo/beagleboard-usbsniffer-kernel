@@ -1055,7 +1055,22 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 };
 
 #ifdef CONFIG_OMAP_MUX
-static struct omap_board_mux board_mux[] __initdata = {
+static struct omap_board_mux omap35x_board_mux[] __initdata = {
+#ifdef CONFIG_KEYBOARD_TWL4030
+	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
+				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
+				OMAP_PIN_OFF_WAKEUPENABLE),
+#endif
+#ifdef CONFIG_TOUCHSCREEN_ADS7846
+	OMAP3_MUX(MCSPI1_CS1, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
+				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
+				OMAP_PIN_OFF_WAKEUPENABLE),
+#endif
+
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+static struct omap_board_mux omap36x_board_mux[] __initdata = {
 #ifdef CONFIG_KEYBOARD_TWL4030
 	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
 				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
@@ -1082,7 +1097,8 @@ static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
-#define board_mux	NULL
+#define omap36x_board_mux	NULL
+#define omap35x_board_mux	NULL
 #endif
 
 static void __init omap3_evm_init(void)
@@ -1096,7 +1112,10 @@ static void __init omap3_evm_init(void)
 		omap3evm_twldata.vusb1v8 = &omap3_evm_vusb1v8;
 	}
 
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	if (cpu_is_omap3630())
+		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
+	else
+		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
 
