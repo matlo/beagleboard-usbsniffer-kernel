@@ -226,14 +226,36 @@ void init_opp(struct shared_resource *resp)
 		dpll1_clk = clk_get(NULL, "dpll1_ck");
 		dpll2_clk = clk_get(NULL, "dpll2_ck");
 		ret = freq_to_opp(&opp_id, OPP_MPU, dpll1_clk->rate);
-		BUG_ON(ret); /* TBD Cleanup handling */
+		if (ret) {
+			pr_err("%s: initializing %s failed! !match for %ld\n",
+				__func__, resp->name, dpll1_clk->rate);
+			if (dpll1_clk)
+				clk_put(dpll1_clk);
+			if (dpll2_clk)
+				clk_put(dpll2_clk);
+			dpll1_clk = NULL;
+			dpll2_clk = NULL;
+			vdd1_resp = NULL;
+			return;
+		}
 		curr_vdd1_opp = opp_id;
 	} else if (strcmp(resp->name, "vdd2_opp") == 0) {
 		vdd2_resp = resp;
 		dpll3_clk = clk_get(NULL, "dpll3_m2_ck");
 		l3_clk = clk_get(NULL, "l3_ick");
 		ret = freq_to_opp(&opp_id, OPP_L3, l3_clk->rate);
-		BUG_ON(ret); /* TBD Cleanup handling */
+		if (ret) {
+			pr_err("%s: initializing %s failed! !match for %ld\n",
+				__func__, resp->name, l3_clk->rate);
+			if (l3_clk)
+				clk_put(l3_clk);
+			if (dpll3_clk)
+				clk_put(dpll3_clk);
+			l3_clk = NULL;
+			dpll3_clk = NULL;
+			vdd2_resp = NULL;
+			return;
+		}
 		curr_vdd2_opp = opp_id;
 	}
 	resp->curr_level = opp_id;
@@ -511,7 +533,7 @@ void init_freq(struct shared_resource *resp)
 {
 	char *linked_res_name;
 	int ret = -EINVAL;
-	unsigned long freq;
+	unsigned long freq = 0;
 	resp->no_of_users = 0;
 
 	linked_res_name = (char *)resp->resource_data;
@@ -524,7 +546,8 @@ void init_freq(struct shared_resource *resp)
 	else if (strcmp(resp->name, "dsp_freq") == 0)
 		/* DSP freq in Mhz */
 		ret = opp_to_freq(&freq, OPP_DSP, curr_vdd1_opp);
-	BUG_ON(ret);
+	if (ret)
+		pr_err("%s: initializing frequency failed!\n", __func__);
 
 	resp->curr_level = freq;
 	return;
