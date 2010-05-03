@@ -217,13 +217,12 @@ static void omap34xxcam_vbq_release(struct videobuf_queue *vbq,
 	struct omap34xxcam_videodev *vdev = fh->vdev;
 	struct device *isp = vdev->cam->isp;
 
-	if (!vbq->streaming) {
+	if (!vbq->streaming || vb->memory != V4L2_MEMORY_MMAP) {
 		isp_vbq_release(isp, vbq, vb);
 		videobuf_dma_unmap(vbq, videobuf_to_dma(vb));
 		videobuf_dma_free(videobuf_to_dma(vb));
 		vb->state = VIDEOBUF_NEEDS_INIT;
 	}
-	return;
 }
 
 
