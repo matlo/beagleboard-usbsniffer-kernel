@@ -629,11 +629,13 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		}
 		snprintf(supply, sizeof(supply), "hsusb%d", i);
 		omap->regulator[i] = regulator_get(omap->dev, supply);
-		if (IS_ERR(omap->regulator[i]))
+		if (IS_ERR(omap->regulator[i])) {
+			omap->regulator[i] = NULL;
 			dev_dbg(&pdev->dev,
 			"failed to get ehci port%d regulator\n", i);
-		else
+		} else {
 			regulator_enable(omap->regulator[i]);
+		}
 	}
 
 	ret = omap_start_ehc(omap, hcd);
@@ -679,6 +681,7 @@ err_uhh_ioremap:
 
 err_ioremap:
 	usb_put_hcd(hcd);
+	kfree(omap);
 
 err_create_hcd:
 	kfree(omap);
