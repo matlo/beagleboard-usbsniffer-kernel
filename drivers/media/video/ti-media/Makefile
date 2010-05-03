@@ -17,5 +17,5 @@ obj-$(CONFIG_VIDEO_DM6446_CCDC) += dm644x_ccdc.o
 obj-$(CONFIG_VIDEO_DM355_CCDC) += dm355_ccdc.o
 
 # OMAP2/3 Display driver
-omap-vout-mod-objs := omap_vout.o omap_voutlib.o
-obj-$(CONFIG_VIDEO_OMAP2_VOUT) += omap-vout-mod.o
+omap-vout-y := omap_vout.o omap_voutlib.o
+obj-$(CONFIG_VIDEO_OMAP2_VOUT) += omap-vout.o
