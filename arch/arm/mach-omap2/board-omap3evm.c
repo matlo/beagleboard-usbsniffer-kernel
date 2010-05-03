@@ -57,6 +57,7 @@
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
+#include "sdram-hynix-h8kds0un0mer-4em.h"
 #include "mmc-twl4030.h"
 #include "pm.h"
 #include "prm-regbits-34xx.h"
@@ -1013,7 +1014,7 @@ static void __init omap3_evm_init_irq(void)
 
 	if (cpu_is_omap3630())
 	{
-		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
+		omap2_init_common_hw(h8kds0un0mer4em_sdrc_params,
 					NULL,
 					_omap37x_mpu_rate_table,
 					_omap37x_dsp_rate_table,
