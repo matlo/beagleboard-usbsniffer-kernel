@@ -496,24 +496,55 @@ static struct i2c_board_info __initdata beagle_i2c1_boardinfo[] = {
 	},
 };
 
+	
+#if defined(CONFIG_EEPROM_AT24) || defined(CONFIG_EEPROM_AT24_MODULE)
+#include <linux/i2c/at24.h>
+
+static struct at24_platform_data m24c01 = {
+	        .byte_len       = SZ_1K / 8,
+	        .page_size      = 16,
+};
+
 #if defined(CONFIG_RTC_DRV_DS1307) || \
 	defined(CONFIG_RTC_DRV_DS1307_MODULE)
 
-static struct i2c_board_info __initdata beagle_i2c2_boardinfo[] = {
+static struct i2c_board_info __initdata beagle_zippy_i2c2_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("ds1307", 0x68),
 	},
+	{
+		I2C_BOARD_INFO("24c01", 0x50),
+		.platform_data	= &m24c01,
+	},
 };
 #else
-static struct i2c_board_info __initdata beagle_i2c2_boardinfo[] = {};
+static struct i2c_board_info __initdata beagle_zippy_i2c2_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("24c01", 0x50),
+		.platform_data  = &m24c01,
+	},
+};
 #endif
+#else
+static struct i2c_board_info __initdata beagle_zippy_i2c2_boardinfo[] = {};
+#endif
+
+static struct i2c_board_info __initdata beagle_i2c2_boardinfo[] = {};
 
 static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c1_boardinfo,
 			ARRAY_SIZE(beagle_i2c1_boardinfo));
-	omap_register_i2c_bus(2, 400,  beagle_i2c2_boardinfo,
-			ARRAY_SIZE(beagle_i2c2_boardinfo));
+	if(!strcmp(expansionboard_name, "zippy") || !strcmp(expansionboard_name, "zippy2")) 
+	{
+		printk(KERN_INFO "Beagle expansionboard: registering i2c2 bus for zippy/zippy2\n");
+		omap_register_i2c_bus(2, 400,  beagle_zippy_i2c2_boardinfo,
+				ARRAY_SIZE(beagle_zippy_i2c2_boardinfo));
+	} else
+	{
+		omap_register_i2c_bus(2, 400,  beagle_i2c2_boardinfo,
+				ARRAY_SIZE(beagle_i2c2_boardinfo));
+	}
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 100, NULL, 0);
