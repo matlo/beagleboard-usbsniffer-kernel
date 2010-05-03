@@ -701,7 +701,38 @@ static void __init omap3_beagle_init(void)
 		mmc[1].gpio_wp = 141;
 		mmc[1].gpio_cd = 162;
 	}
-	
+
+	if(!strcmp(expansionboard_name, "trainer"))
+	{
+		printk(KERN_INFO "Beagle expansionboard: exporting GPIOs 130-141,162 to userspace\n");
+		gpio_request(130, "sysfs");
+		gpio_export(130, 1);
+		gpio_request(131, "sysfs");
+		gpio_export(131, 1);
+		gpio_request(132, "sysfs");
+		gpio_export(132, 1);
+		gpio_request(133, "sysfs");
+		gpio_export(133, 1);
+		gpio_request(134, "sysfs");
+		gpio_export(134, 1);
+		gpio_request(135, "sysfs");
+		gpio_export(135, 1);
+		gpio_request(136, "sysfs");
+		gpio_export(136, 1);
+		gpio_request(137, "sysfs");
+		gpio_export(137, 1);
+		gpio_request(138, "sysfs");
+		gpio_export(138, 1);
+		gpio_request(139, "sysfs");
+		gpio_export(139, 1);
+		gpio_request(140, "sysfs");
+		gpio_export(140, 1);
+		gpio_request(141, "sysfs");
+		gpio_export(141, 1);
+		gpio_request(162, "sysfs");
+		gpio_export(162, 1);
+	}
+
 	usb_musb_init();
 	usb_ehci_init(&ehci_pdata);
 	omap3beagle_flash_init();
