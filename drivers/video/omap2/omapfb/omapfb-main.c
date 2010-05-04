@@ -182,11 +182,6 @@ static unsigned omapfb_get_vrfb_offset(struct omapfb_info *ofbi, int rot)
 static u32 omapfb_get_region_rot_paddr(struct omapfb_info *ofbi, int rot)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		if (rot == FB_ROTATE_CW)
-			rot = FB_ROTATE_CCW;
-		else if (rot == FB_ROTATE_CCW)
-			rot = FB_ROTATE_CW;
-
 		return ofbi->region.vrfb.paddr[rot]
 			+ omapfb_get_vrfb_offset(ofbi, rot);
 	} else {
@@ -194,32 +189,20 @@ static u32 omapfb_get_region_rot_paddr(struct omapfb_info *ofbi, int rot)
 	}
 }
 
-static u32 omapfb_get_region_paddr(struct omapfb_info *ofbi, int rot)
+static u32 omapfb_get_region_paddr(struct omapfb_info *ofbi)
 {
-	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		if (rot == FB_ROTATE_CW)
-			rot = FB_ROTATE_CCW;
-		else if (rot == FB_ROTATE_CCW)
-			rot = FB_ROTATE_CW;
-
-		return ofbi->region.vrfb.paddr[rot];
-	} else {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
+		return ofbi->region.vrfb.paddr[0];
+	else
 		return ofbi->region.paddr;
-	}
 }
 
-static void __iomem *omapfb_get_region_vaddr(struct omapfb_info *ofbi, int rot)
+static void __iomem *omapfb_get_region_vaddr(struct omapfb_info *ofbi)
 {
-	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		if (rot == FB_ROTATE_CW)
-			rot = FB_ROTATE_CCW;
-		else if (rot == FB_ROTATE_CCW)
-			rot = FB_ROTATE_CW;
-
-		return ofbi->region.vrfb.vaddr[rot];
-	} else {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
+		return ofbi->region.vrfb.vaddr[0];
+	else
 		return ofbi->region.vaddr;
-	}
 }
 
 static struct omapfb_colormode omapfb_colormodes[] = {
@@ -518,18 +501,13 @@ static int setup_vrfb_rotation(struct fb_info *fbi)
 	unsigned bytespp;
 	bool yuv_mode;
 	enum omap_color_mode mode;
-	int r, rotation = var->rotate;
+	int r;
 	bool reconf;
 
 	if (!rg->size || ofbi->rotation_type != OMAP_DSS_ROT_VRFB)
 		return 0;
 
 	DBG("setup_vrfb_rotation\n");
-
-	if (rotation == FB_ROTATE_CW)
-		rotation = FB_ROTATE_CCW;
-	else if (rotation == FB_ROTATE_CCW)
-		rotation = FB_ROTATE_CW;
 
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r)
@@ -554,35 +532,32 @@ static int setup_vrfb_rotation(struct fb_info *fbi)
 			vrfb->yres != var->yres_virtual)
 		reconf = true;
 
-	if (vrfb->vaddr[rotation] && reconf) {
+	if (vrfb->vaddr[0] && reconf) {
 		fbi->screen_base = NULL;
 		fix->smem_start = 0;
 		fix->smem_len = 0;
-		iounmap(vrfb->vaddr[rotation]);
-		vrfb->vaddr[rotation] = NULL;
+		iounmap(vrfb->vaddr[0]);
+		vrfb->vaddr[0] = NULL;
 		DBG("setup_vrfb_rotation: reset fb\n");
 	}
 
-	if (vrfb->vaddr[rotation])
+	if (vrfb->vaddr[0])
 		return 0;
 
-	if (rotation == FB_ROTATE_CW || rotation == FB_ROTATE_CCW)
-		omap_vrfb_setup(&rg->vrfb, rg->paddr,
-				var->yres_virtual, var->xres_virtual,
-				bytespp, yuv_mode);
-	else
-		omap_vrfb_setup(&rg->vrfb, rg->paddr,
-				var->xres_virtual, var->yres_virtual,
-				bytespp, yuv_mode);
+	omap_vrfb_setup(&rg->vrfb, rg->paddr,
+			var->xres_virtual,
+			var->yres_virtual,
+			bytespp, yuv_mode);
 
-	/* Now one can ioremap the rotation angle view */
-	r = omap_vrfb_map_angle(vrfb, var->yres_virtual, rotation);
+	/* Now one can ioremap the 0 angle view */
+	r = omap_vrfb_map_angle(vrfb, var->yres_virtual, 0);
 	if (r)
 		return r;
-	/* used by open/write in fbmem.c */
-	fbi->screen_base = ofbi->region.vrfb.vaddr[rotation];
 
-	fix->smem_start = ofbi->region.vrfb.paddr[rotation];
+	/* used by open/write in fbmem.c */
+	fbi->screen_base = ofbi->region.vrfb.vaddr[0];
+
+	fix->smem_start = ofbi->region.vrfb.paddr[0];
 
 	switch (var->nonstd) {
 	case OMAPFB_COLOR_YUV422:
@@ -626,8 +601,7 @@ void set_fb_fix(struct fb_info *fbi)
 	DBG("set_fb_fix\n");
 
 	/* used by open/write in fbmem.c */
-	fbi->screen_base = (char __iomem *)omapfb_get_region_vaddr(ofbi,
-			var->rotate);
+	fbi->screen_base = (char __iomem *)omapfb_get_region_vaddr(ofbi);
 
 	/* used by mmap in fbmem.c */
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
@@ -650,7 +624,7 @@ void set_fb_fix(struct fb_info *fbi)
 		fix->smem_len = rg->size;
 	}
 
-	fix->smem_start = omapfb_get_region_paddr(ofbi, var->rotate);
+	fix->smem_start = omapfb_get_region_paddr(ofbi);
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 
@@ -886,15 +860,15 @@ static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		data_start_p = omapfb_get_region_rot_paddr(ofbi, 0);
+		data_start_p = omapfb_get_region_rot_paddr(ofbi, rotation);
 		data_start_v = NULL;
 	} else {
-		data_start_p = omapfb_get_region_paddr(ofbi, 0);
-		data_start_v = omapfb_get_region_vaddr(ofbi, 0);
+		data_start_p = omapfb_get_region_paddr(ofbi);
+		data_start_v = omapfb_get_region_vaddr(ofbi);
 	}
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
-		offset = calc_rotation_offset_vrfb(var, fix, 0);
+		offset = calc_rotation_offset_vrfb(var, fix, rotation);
 	else
 		offset = calc_rotation_offset_dma(var, fix, rotation);
 
@@ -1102,7 +1076,6 @@ static struct vm_operations_struct mmap_user_ops = {
 static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct fb_var_screeninfo *var = &fbi->var;
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	unsigned long off;
 	unsigned long start;
@@ -1114,7 +1087,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
 
-	start = omapfb_get_region_paddr(ofbi, var->rotate);
+	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
 	if (off >= len)
 		return -EINVAL;
