@@ -199,12 +199,15 @@ static struct powerdomain usbhost_pwrdm = {
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	/*
-	 * REVISIT: Enabling usb host save and restore mechanism seems to
-	 * leave the usb host domain permanently in ACTIVE mode after
-	 * changing the usb host power domain state from OFF to active once.
-	 * Disabling for now.
+	 * With EHCI power management support added in driver we don't see
+	 * earlier issue where usb host domain permanently remains in ACTIVE
+	 * mode. This issue is still observed if this flag is enabled and EHCI
+	 * driver is not selected in kernel config so putting this flag within
+	 * EHCI driver config.
 	 */
-	/*.flags	  = PWRDM_HAS_HDWR_SAR,*/ /* for USBHOST ctrlr only */
+#if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE)
+	.flags	  = PWRDM_HAS_HDWR_SAR, /* for USBHOST ctrlr only */
+#endif
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
