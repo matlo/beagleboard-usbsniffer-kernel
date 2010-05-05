@@ -80,6 +80,12 @@ struct musb_hw_ep;
 #define tusb_dma_omap()			0
 #endif
 
+#ifdef CONFIG_USB_INVENTRA_DMA
+#define	is_inventra_dma_enabled()	1
+#else
+#define	is_inventra_dma_enabled()	0
+#endif
+
 /* Anomaly 05000456 - USB Receive Interrupt Is Not Generated in DMA Mode 1
  *	Only allow DMA mode 1 to be used when the USB will actually generate the
  *	interrupts we expect.
