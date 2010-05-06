@@ -2095,7 +2095,7 @@ static int omap_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 		__raw_writel(bank->suspend_wakeup, wake_set);
 		spin_unlock_irqrestore(&bank->lock, flags);
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 		if (bank->method == METHOD_GPIO_24XX) {
 			int j;
 			for (j = 0; j < 32; j++) {
