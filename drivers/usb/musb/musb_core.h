@@ -493,9 +493,6 @@ struct musb {
 };
 
 #ifdef CONFIG_PM
-extern unsigned short musb_clock_on;
-extern int musb_resume_noirq(struct device *dev);
-extern int musb_suspend(struct device *dev);
 struct musb_csr_regs {
 	/* FIFO registers */
 	u16 txmaxp, txcsr, rxmaxp, rxcsr;

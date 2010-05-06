@@ -2398,7 +2398,7 @@ void musb_restore_context()
 	musb_writeb(musb_base, MUSB_INDEX, musb_context.index);
 }
 
-int musb_suspend(struct device *dev)
+static int musb_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	unsigned long	flags;
@@ -2443,7 +2443,7 @@ int musb_suspend(struct device *dev)
 	return 0;
 }
 
-int musb_resume_noirq(struct device *dev)
+static int musb_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct musb	*musb = dev_to_musb(&pdev->dev);
