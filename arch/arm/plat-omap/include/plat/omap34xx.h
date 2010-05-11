@@ -82,5 +82,20 @@
 
 #define OMAP34XX_MAILBOX_BASE	(L4_34XX_BASE + 0x94000)
 
-#endif /* __ASM_ARCH_OMAP3_H */
+/* VDD OPP identifiers */
+#define VDD1_OPP	0x1
+#define VDD2_OPP	0x2
 
+/* VDD1 OPPS */
+#define VDD1_OPP1	0x1
+#define VDD1_OPP2	0x2
+#define VDD1_OPP3	0x3
+#define VDD1_OPP4	0x4
+#define VDD1_OPP5	0x5
+
+/* VDD2 OPPS */
+#define VDD2_OPP1	0x1
+#define VDD2_OPP2	0x2
+#define VDD2_OPP3	0x3
+
+#endif /* __ASM_ARCH_OMAP3_H */
