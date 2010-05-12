@@ -1918,7 +1918,8 @@ static void musb_free(struct musb *musb)
  *	not yet corrected for platform-specific offsets
  */
 static int __init
-musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
+musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl,
+			phys_addr_t ctrl_phys_addr)
 {
 	int			status;
 	struct musb		*musb;
@@ -1970,6 +1971,7 @@ bad_config:
 	musb->board_set_power = plat->set_power;
 	musb->set_clock = plat->set_clock;
 	musb->min_power = plat->min_power;
+	musb->ctrl_phys_base = ctrl_phys_addr;
 
 	/* Clock usage is chip-specific ... functional clock (DaVinci,
 	 * OMAP2430), or PHY ref (some TUSB6010 boards).  All this core
@@ -2195,7 +2197,7 @@ static int __init musb_probe(struct platform_device *pdev)
 	/* clobbered by use_dma=n */
 	orig_dma_mask = dev->dma_mask;
 #endif
-	status = musb_init_controller(dev, irq, base);
+	status = musb_init_controller(dev, irq, base, iomem->start);
 	if (status < 0)
 		iounmap(base);
 

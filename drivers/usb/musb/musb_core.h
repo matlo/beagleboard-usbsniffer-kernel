@@ -360,6 +360,7 @@ struct musb {
 
 	struct device		*controller;
 	void __iomem		*ctrl_base;
+	phys_addr_t		ctrl_phys_base;
 	void __iomem		*mregs;
 
 #ifdef CONFIG_USB_TUSB6010
