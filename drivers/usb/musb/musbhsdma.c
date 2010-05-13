@@ -52,11 +52,34 @@ static void musb_sdma_channel_program(struct musb *musb,
 		struct musb_dma_channel *musb_channel,
 		dma_addr_t dma_addr, u32 len)
 {
+	u16 frame = len;
+	int data_type = OMAP_DMA_DATA_TYPE_S8;
+
+	switch (dma_addr & 0x3) {
+	case 0:
+		if ((len % 4) == 0) {
+			data_type = OMAP_DMA_DATA_TYPE_S32;
+			frame = len / 4;
+			break;
+		}
+	case 2:
+		if ((len % 2) == 0) {
+			data_type = OMAP_DMA_DATA_TYPE_S16;
+			frame = len / 2;
+			break;
+		}
+	case 1:
+	case 3:
+	default:
+		data_type = OMAP_DMA_DATA_TYPE_S8;
+		frame = len;
+		break;
+	}
 	/* set transfer parameters */
 	omap_set_dma_transfer_params(musb_channel->sysdma_channel,
-				OMAP_DMA_DATA_TYPE_S8,
-				len ? len : 1, 1, /* One frame */
-				OMAP_DMA_SYNC_ELEMENT,
+				data_type,
+				len ? frame : 1, 1, /* One frame */
+				OMAP_DMA_SYNC_FRAME,
 				OMAP24XX_DMA_NO_DEVICE,
 				0); /* Src Sync */
 
