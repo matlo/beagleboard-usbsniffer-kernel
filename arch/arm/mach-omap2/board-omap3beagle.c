@@ -614,7 +614,7 @@ static void __init omap3_beagle_init_irq(void)
         if (cpu_is_omap3630())
         {
                 omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-                                        NULL,
+                                        mt46h32m32lf6_sdrc_params,
                                         _omap37x_mpu_rate_table,
                                         _omap37x_dsp_rate_table,
                                         _omap37x_l3_rate_table);
@@ -622,7 +622,7 @@ static void __init omap3_beagle_init_irq(void)
         else
         {
                 omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-                                        NULL,
+                                        mt46h32m32lf6_sdrc_params,
                                         _omap35x_mpu_rate_table,
                                         _omap35x_dsp_rate_table,
                                         _omap35x_l3_rate_table);
