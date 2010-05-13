@@ -170,6 +170,12 @@ config MUSB_USE_SYSTEM_DMA_WORKAROUND
           DMA channels are simultaneously enabled. To work around this issue,
           you can choose to use System DMA for RX channels.
 
+	  Also on Mentor DMA in MUSB RTL version 1.8 (OMAP3630, AM/DM37x)
+	  requires buffers to be aligned on a four byte boundary. This affects
+	  USB CDC/RNDIS class application where buffers are always unaligned.
+	  To work around this issue, you can choose to use System DMA for
+	  unaligned buffers.
+
 config USB_TI_CPPI_DMA
 	bool
 	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY

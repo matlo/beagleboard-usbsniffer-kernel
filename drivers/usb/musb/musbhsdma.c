@@ -52,8 +52,7 @@ static void musb_sdma_channel_program(struct musb *musb,
 		struct musb_dma_channel *musb_channel,
 		dma_addr_t dma_addr, u32 len)
 {
-	/* System DMA */
-	/* RX: set src = FIFO */
+	/* set transfer parameters */
 	omap_set_dma_transfer_params(musb_channel->sysdma_channel,
 				OMAP_DMA_DATA_TYPE_S8,
 				len ? len : 1, 1, /* One frame */
@@ -61,20 +60,39 @@ static void musb_sdma_channel_program(struct musb *musb,
 				OMAP24XX_DMA_NO_DEVICE,
 				0); /* Src Sync */
 
-	omap_set_dma_src_params(musb_channel->sysdma_channel, 0,
-				OMAP_DMA_AMODE_CONSTANT,
-				MUSB_FIFO_ADDRESS(musb->ctrl_phys_base,
-				musb_channel->epnum),
-				0, 0);
+	if (!musb_channel->transmit) {
+		/* RX: set src = FIFO */
+		omap_set_dma_src_params(musb_channel->sysdma_channel, 0,
+					OMAP_DMA_AMODE_CONSTANT,
+					MUSB_FIFO_ADDRESS(musb->ctrl_phys_base,
+					musb_channel->epnum),
+					0, 0);
 
-	omap_set_dma_dest_params(musb_channel->sysdma_channel, 0,
-				OMAP_DMA_AMODE_POST_INC, dma_addr,
-				0, 0);
+		omap_set_dma_dest_params(musb_channel->sysdma_channel, 0,
+					OMAP_DMA_AMODE_POST_INC, dma_addr,
+					0, 0);
 
-	omap_set_dma_dest_data_pack(musb_channel->sysdma_channel, 1);
-	omap_set_dma_dest_burst_mode(musb_channel->sysdma_channel,
-				OMAP_DMA_DATA_BURST_16);
+		omap_set_dma_dest_data_pack(musb_channel->sysdma_channel, 1);
+		omap_set_dma_dest_burst_mode(musb_channel->sysdma_channel,
+					OMAP_DMA_DATA_BURST_16);
 
+	} else if (musb_channel->transmit) {
+		/* TX: set dst = FIFO */
+		omap_set_dma_src_params(musb_channel->sysdma_channel, 0,
+					OMAP_DMA_AMODE_POST_INC, dma_addr,
+					0, 0);
+
+		omap_set_dma_dest_params(musb_channel->sysdma_channel, 0,
+					OMAP_DMA_AMODE_CONSTANT,
+					MUSB_FIFO_ADDRESS(musb->ctrl_phys_base,
+						musb_channel->epnum),
+					0, 0);
+
+		omap_set_dma_dest_data_pack(musb_channel->sysdma_channel, 0);
+		omap_set_dma_dest_burst_mode(musb_channel->sysdma_channel,
+					OMAP_DMA_DATA_BURST_DIS);
+	}
+	/* start the system dma */
 	omap_start_dma(musb_channel->sysdma_channel);
 }
 static void musb_sysdma_completion(int lch, u16 ch_status, void *data)
@@ -88,12 +106,18 @@ static void musb_sysdma_completion(int lch, u16 ch_status, void *data)
 					(struct musb_dma_channel *) data;
 	struct musb_dma_controller *controller = musb_channel->controller;
 	struct musb *musb = controller->private_data;
+	void __iomem *mbase = controller->base;
+
 	channel = &musb_channel->channel;
 
 	DBG(2, "lch = 0x%d, ch_status = 0x%x\n", lch, ch_status);
 	spin_lock_irqsave(&musb->lock, flags);
 
-	addr = (u32) omap_get_dma_dst_pos(musb_channel->sysdma_channel);
+	if (musb_channel->transmit)
+		addr = (u32) omap_get_dma_src_pos(musb_channel->sysdma_channel);
+	else
+		addr = (u32) omap_get_dma_dst_pos(musb_channel->sysdma_channel);
+
 	if (musb_channel->len == 0)
 		channel->actual_len = 0;
 	else
@@ -106,6 +130,26 @@ static void musb_sysdma_completion(int lch, u16 ch_status, void *data)
 		"=> reconfig 0 " : " => complete");
 
 	channel->status = MUSB_DMA_STATUS_FREE;
+
+	/* completed */
+	if ((musb_channel->transmit) && (channel->desired_mode == 0)
+		&& (channel->actual_len == musb_channel->max_packet_sz)) {
+
+		u8  epnum  = musb_channel->epnum;
+		int offset = MUSB_EP_OFFSET(epnum,
+				    MUSB_TXCSR);
+		u16 txcsr;
+
+		/*
+		 * The programming guide says that we
+		 * must clear DMAENAB before DMAMODE.
+		 */
+		musb_ep_select(mbase, epnum);
+		txcsr = musb_readw(mbase, offset);
+		txcsr |=  MUSB_TXCSR_TXPKTRDY;
+		musb_writew(mbase, offset, txcsr);
+	}
+
 	musb_dma_completion(musb, musb_channel->epnum, musb_channel->transmit);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -194,8 +238,15 @@ static struct dma_channel *dma_channel_allocate(struct dma_controller *c,
 			 * issue when TX and RX DMA channels are simultaneously
 			 * enabled. To work around this issue, use system DMA
 			 * for all RX channels.
+			 * Also on MUSB RTL version 1.8 onward (OMAP3630, OMAP4
+			 * and AM/DM37x) DMA requires buffers to be aligned on
+			 * a four byte boundary. This affects USB CDC/RNDIS
+			 * class application where buffers are always unaligned.
+			 * Using system DMA for unaligned buffers as a
+			 * workaround for this issue.
 			 */
-			if (((musb->hwvers == MUSB_HWVERS_1400) && !transmit)
+			if ((((musb->hwvers == MUSB_HWVERS_1400) && !transmit)
+				|| (musb->hwvers >= MUSB_HWVERS_1800))
 				&& use_sdma_workaround()) {
 				int ret;
 				ret = musb_sdma_channel_request(
@@ -248,11 +299,18 @@ static void configure_channel(struct dma_channel *channel,
 	struct musb *musb = controller->private_data;
 	void __iomem *mbase = controller->base;
 	u8 bchannel = musb_channel->idx;
+	u8 buffer_is_aligned = (dma_addr & 0x3) ? 0 : 1;
+	u8 use_sdma = (musb_channel->sysdma_channel == -1) ? 0 : 1;
 	u16 csr = 0;
 
 	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
-	if (musb_channel->sysdma_channel != -1) {
+
+	if (buffer_is_aligned && (packet_sz >= 512) &&
+			(musb->hwvers >= MUSB_HWVERS_1800))
+		use_sdma = 0;
+
+	if (use_sdma) {
 		musb_sdma_channel_program(musb, musb_channel, dma_addr, len);
 	} else { /* Mentor DMA */
 
@@ -328,6 +386,9 @@ static int dma_channel_abort(struct dma_channel *channel)
 	u16 csr;
 
 	if (channel->status == MUSB_DMA_STATUS_BUSY) {
+		if (musb_channel->sysdma_channel != -1)
+			musb_sdma_channel_abort(musb_channel->sysdma_channel);
+
 		if (musb_channel->transmit) {
 			offset = MUSB_EP_OFFSET(musb_channel->epnum,
 						MUSB_TXCSR);
@@ -342,10 +403,6 @@ static int dma_channel_abort(struct dma_channel *channel)
 			csr &= ~MUSB_TXCSR_DMAMODE;
 			musb_writew(mbase, offset, csr);
 		} else {
-			if (musb_channel->sysdma_channel != -1)
-				musb_sdma_channel_abort(
-					musb_channel->sysdma_channel);
-
 			offset = MUSB_EP_OFFSET(musb_channel->epnum,
 						MUSB_RXCSR);
 
