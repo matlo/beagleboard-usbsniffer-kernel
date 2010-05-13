@@ -317,6 +317,22 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			else
 				musb_ep->dma->desired_mode = 1;
 
+			/*
+			 * Use system dma for unaligned buffers on RTL >= 1.8
+			 * for Inventra DMA. As system DMA can work only in
+			 * mode-0 so update the desired_mode and request_size.
+			 */
+			if (is_inventra_dma_enabled() &&
+				((request->dma + request->actual) & 0x3) &&
+				(musb->hwvers >= MUSB_HWVERS_1800)) {
+
+				request_size = min_t(size_t,
+					musb_ep->hw_ep->max_packet_sz_tx,
+					request->length - request->actual);
+
+				musb_ep->dma->desired_mode = 0;
+			}
+
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					musb_ep->dma->desired_mode,
@@ -463,7 +479,6 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 		u8	is_dma = 0;
 
 		if (dma && (csr & MUSB_TXCSR_DMAENAB)) {
-			is_dma = 1;
 			csr |= MUSB_TXCSR_P_WZC_BITS;
 			csr &= ~(MUSB_TXCSR_DMAENAB | MUSB_TXCSR_P_UNDERRUN |
 				 MUSB_TXCSR_TXPKTRDY);
@@ -471,6 +486,10 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			/* Ensure writebuffer is empty. */
 			csr = musb_readw(epio, MUSB_TXCSR);
 			request->actual += musb_ep->dma->actual_len;
+
+			if (request->actual == request->length)
+				is_dma = 1;
+
 			DBG(4, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
 				epnum, csr, musb_ep->dma->actual_len, request);
 		}
