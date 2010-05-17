@@ -672,6 +672,7 @@ int usb_parse_configuration(struct device *ddev, int cfgidx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_parse_configuration);
 
 /* hub-only!! ... and only exported for reset/reinit path.
  * otherwise used internally on disconnect/destroy path
