@@ -1,0 +1,4 @@
+pkill picocom
+sleep 1
+picosend musb_hdrc.ko
+

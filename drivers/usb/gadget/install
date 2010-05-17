@@ -1,0 +1,5 @@
+./compile
+pkill picocom
+sleep 1
+picosend g_proxy.ko
+
