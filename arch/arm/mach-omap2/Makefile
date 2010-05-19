@@ -22,7 +22,7 @@ obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 # SMP support ONLY available for OMAP4
 obj-$(CONFIG_SMP)			+= omap-smp.o omap-headsmp.o
 obj-$(CONFIG_LOCAL_TIMERS)		+= timer-mpu.o
-obj-$(CONFIG_ARCH_OMAP4)		+= omap44xx-smc.o
+obj-$(CONFIG_ARCH_OMAP4)		+= omap44xx-smc.o omap4-common.o
 
 AFLAGS_omap44xx-smc.o			:=-Wa,-march=armv7-a
 
@@ -89,10 +89,7 @@ obj-$(CONFIG_OMAP3_EMU)			+= emu.o
 obj-$(CONFIG_OMAP_MBOX_FWK)		+= mailbox_mach.o
 mailbox_mach-objs			:= mailbox.o
 
-iommu-y					+= iommu2.o
-iommu-$(CONFIG_ARCH_OMAP3)		+= omap3-iommu.o
-
-obj-$(CONFIG_OMAP_IOMMU)		+= $(iommu-y)
+obj-$(CONFIG_OMAP_IOMMU)		:= iommu2.o omap-iommu.o
 
 i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
 obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
