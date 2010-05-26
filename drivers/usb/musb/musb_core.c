@@ -893,10 +893,11 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 /*
 * Program the HDRC to start (enable interrupts, dma, etc.).
 */
-void musb_start(struct musb *musb)
+void musb_start(struct musb *musb, enum usb_device_speed speed)
 {
 	void __iomem	*regs = musb->mregs;
 	u8		devctl = musb_readb(regs, MUSB_DEVCTL);
+	u32 power_hs;
 
 	DBG(2, "<== devctl %02x\n", devctl);
 
@@ -907,10 +908,15 @@ void musb_start(struct musb *musb)
 
 	musb_writeb(regs, MUSB_TESTMODE, 0);
 
+	if (speed == USB_SPEED_HIGH)
+		power_hs = MUSB_POWER_HSENAB;
+	else
+		power_hs = 0;
+
 	/* put into basic highspeed mode and start session */
 	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
 						| MUSB_POWER_SOFTCONN
-						| MUSB_POWER_HSENAB
+						| power_hs
 						/* ENSUSPEND wedges tusb */
 						/* | MUSB_POWER_ENSUSPEND */
 						);
