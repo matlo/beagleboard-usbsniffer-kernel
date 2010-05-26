@@ -1709,7 +1709,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct musb *musb = the_gadget;
 
 	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
+			/*|| driver->speed != USB_SPEED_HIGH */ /* Is this check really needed??!?? */
 			|| !driver->bind
 			|| !driver->setup)
 		return -EINVAL;
