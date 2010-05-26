@@ -372,7 +372,7 @@ int musb_hub_control(
 			 * logic relating to VBUS power-up.
 			 */
 			if (!(is_otg_enabled(musb) && hcd->self.is_b_host))
-				musb_start(musb);
+				musb_start(musb, USB_SPEED_HIGH);
 			break;
 		case USB_PORT_FEAT_RESET:
 			musb_port_reset(musb, true);
