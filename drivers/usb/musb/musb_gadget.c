@@ -1711,7 +1711,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct musb *musb = the_gadget;
 
 	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
+	    		|| (driver->speed != USB_SPEED_HIGH &&
+			    driver->speed != USB_SPEED_FULL)
 			|| !driver->bind
 			|| !driver->setup)
 		return -EINVAL;
@@ -1762,7 +1763,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		 */
 
 		if (!is_otg_enabled(musb))
-			musb_start(musb);
+			musb_start(musb, driver->speed);
 
 		otg_set_peripheral(musb->xceiv, &musb->g);
 
