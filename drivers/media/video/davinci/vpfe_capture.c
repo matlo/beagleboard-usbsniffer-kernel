@@ -77,7 +77,7 @@
 #include "ccdc_hw_device.h"
 
 static int debug;
-static u32 numbuffers = 3;
+static u32 numbuffers = 2;
 static u32 bufsize = (720 * 576 * 2);
 
 module_param(numbuffers, uint, S_IRUGO);
@@ -112,8 +112,8 @@ struct ccdc_config {
 
 /* data structures */
 static struct vpfe_config_params config_params = {
-	.min_numbuffers = 3,
-	.numbuffers = 3,
+	.min_numbuffers = 2,
+	.numbuffers = 2,
 	.min_bufsize = 720 * 480 * 2,
 	.device_bufsize = 720 * 576 * 2,
 };
