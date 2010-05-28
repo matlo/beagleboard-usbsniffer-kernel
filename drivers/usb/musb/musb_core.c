@@ -1137,10 +1137,10 @@ static struct musb_fifo_cfg __initdata mode_5_cfg[] = {
 { .hw_ep_num =  2, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num =  3, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num =  3, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num =  4, .style = FIFO_TX,   .maxpacket = 512, },
-{ .hw_ep_num =  4, .style = FIFO_RX,   .maxpacket = 512, },
-{ .hw_ep_num =  5, .style = FIFO_TX,   .maxpacket = 512, },
-{ .hw_ep_num =  5, .style = FIFO_RX,   .maxpacket = 512, },
+{ .hw_ep_num =  4, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  4, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  5, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  5, .style = FIFO_RX,   .maxpacket = 32, },
 { .hw_ep_num =  6, .style = FIFO_TX,   .maxpacket = 32, },
 { .hw_ep_num =  6, .style = FIFO_RX,   .maxpacket = 32, },
 { .hw_ep_num =  7, .style = FIFO_TX,   .maxpacket = 32, },
@@ -1155,9 +1155,9 @@ static struct musb_fifo_cfg __initdata mode_5_cfg[] = {
 { .hw_ep_num = 11, .style = FIFO_RX,   .maxpacket = 32, },
 { .hw_ep_num = 12, .style = FIFO_TX,   .maxpacket = 32, },
 { .hw_ep_num = 12, .style = FIFO_RX,   .maxpacket = 32, },
-{ .hw_ep_num = 13, .style = FIFO_RXTX, .maxpacket = 512, },
-{ .hw_ep_num = 14, .style = FIFO_RXTX, .maxpacket = 1024, },
-{ .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 1024, },
+{ .hw_ep_num = 13, .style = FIFO_RXTX, .maxpacket = 128, },
+{ .hw_ep_num = 14, .style = FIFO_RXTX, .maxpacket = 256, },
+{ .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 4096, },
 };
 
 /*
