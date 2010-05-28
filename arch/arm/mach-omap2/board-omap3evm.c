@@ -388,6 +388,19 @@ static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
 	}
 	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 0);
 
+	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
+	 * pins for DSS, but since thes GPIO pins are reuired for LCD
+	 * orientation we must change the mux configuration to GPIO[2-3] for
+	 * SYS_BOOT[0-1]
+	 */
+	if (cpu_is_omap3630()) {
+		omap_mux_set_gpio(OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT, 2);
+		omap_mux_set_gpio(OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT, 3);
+
+		gpio_direction_output(OMAP3EVM_LCD_PANEL_LR, 1);
+		gpio_direction_output(OMAP3EVM_LCD_PANEL_UD, 1);
+	}
+
 	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
 		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
 	else
@@ -444,6 +457,16 @@ static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
 	}
 
 	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 1);
+
+	/* AM/DM37x: To get DSS working with 75MHz, we must use sys_bootx
+	 * pins for DSS, but since thes GPIO pins are reuired for LCD
+	 * orientation we must change the mux configuration to GPIO[2-3] for
+	 * SYS_BOOT[0-1]
+	 */
+	if (cpu_is_omap3630()) {
+		omap_mux_set_gpio(OMAP_MUX_MODE3, 2);
+		omap_mux_set_gpio(OMAP_MUX_MODE3, 3);
+	}
 
 	dvi_enabled = 1;
 	return 0;
@@ -807,16 +830,39 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 };
 
 #ifdef CONFIG_OMAP_MUX
-static struct omap_board_mux board_mux[] __initdata = {
+static struct omap_board_mux omap35x_board_mux[] __initdata = {
 	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
-				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
-				OMAP_PIN_OFF_WAKEUPENABLE),
+			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
+			OMAP_PIN_OFF_WAKEUPENABLE),
 	OMAP3_MUX(MCSPI1_CS1, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
-				OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW),
+			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW),
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+static struct omap_board_mux omap36x_board_mux[] __initdata = {
+	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
+			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
+			OMAP_PIN_OFF_WAKEUPENABLE),
+	OMAP3_MUX(MCSPI1_CS1, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
+			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW),
+	OMAP3_MUX(DSS_DATA18, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA19, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA21, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(DSS_DATA23, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT0, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT1, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT3, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT4, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT5, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
+
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
-#define board_mux	NULL
+#define omap36x_board_mux	NULL
+#define omap35x_board_mux	NULL
 #endif
 
 static struct omap_musb_board_data musb_board_data = {
@@ -828,7 +874,11 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
-	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+
+	if (cpu_is_omap3630())
+		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
+	else
+		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
 
 	omap3_evm_i2c_init();
 
