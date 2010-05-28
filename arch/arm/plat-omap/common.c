@@ -22,12 +22,14 @@
 #include <linux/serial_reg.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/omapfb.h>
 
 #include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
+#include <plat/vram.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
@@ -80,6 +82,12 @@ const void *omap_get_var_config(u16 tag, size_t *len)
         return get_config(tag, NO_LENGTH_CHECK, 0, len);
 }
 EXPORT_SYMBOL(omap_get_var_config);
+
+void __init omap_reserve(void)
+{
+	omapfb_reserve_sdram_lmb();
+	omap_vram_reserve_sdram_lmb();
+}
 
 /*
  * 32KHz clocksource ... always available, on pretty most chips except

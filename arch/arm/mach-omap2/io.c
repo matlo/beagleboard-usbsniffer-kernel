@@ -241,7 +241,6 @@ static void __init _omap2_map_common_io(void)
 
 	omap2_check_revision();
 	omap_sram_init();
-	omap_vram_reserve_sdram();
 }
 
 #ifdef CONFIG_ARCH_OMAP2420
