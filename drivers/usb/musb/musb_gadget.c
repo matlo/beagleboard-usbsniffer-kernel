@@ -896,14 +896,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		/* REVISIT if can_bulk_split(), use by updating "tmp";
 		 * likewise high bandwidth periodic tx
 		 */
-		/* Set TXMAXP with the FIFO size of the endpoint
-		 * to disable double buffering mode. Currently, It seems that double
-		 * buffering has problem if musb RTL revision number < 2.0.
-		 */
-		if (musb->hwvers < MUSB_HWVERS_2000)
-			musb_writew(regs, MUSB_TXMAXP, hw_ep->max_packet_sz_tx);
-		else
-			musb_writew(regs, MUSB_TXMAXP, tmp);
+		musb_writew(regs, MUSB_TXMAXP, tmp);
 
 		csr = MUSB_TXCSR_MODE | MUSB_TXCSR_CLRDATATOG;
 		if (musb_readw(regs, MUSB_TXCSR)
@@ -933,13 +926,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		/* REVISIT if can_bulk_combine() use by updating "tmp"
 		 * likewise high bandwidth periodic rx
 		 */
-		/* Set RXMAXP with the FIFO size of the endpoint
-		 * to disable double buffering mode.
-		 */
-		if (musb->hwvers < MUSB_HWVERS_2000)
-			musb_writew(regs, MUSB_RXMAXP, hw_ep->max_packet_sz_rx);
-		else
-			musb_writew(regs, MUSB_RXMAXP, tmp);
+		musb_writew(regs, MUSB_RXMAXP, tmp);
 
 		/* force shared fifo to OUT-only mode */
 		if (hw_ep->is_shared_fifo) {
