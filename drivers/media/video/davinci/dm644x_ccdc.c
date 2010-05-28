@@ -408,6 +408,10 @@ void ccdc_config_ycbcr(void)
 			syn_mode |= CCDC_SYN_MODE_10BITS;
 		else
 			syn_mode |= CCDC_SYN_MODE_8BITS;
+		/*
+		 * Enable A-Law
+		 */
+		regw(0x6 | CCDC_ALAW_ENABLE, CCDC_ALAW);
 	} else {
 		/* y/c external sync mode */
 		syn_mode |= (((params->fid_pol & CCDC_FID_POL_MASK) <<
