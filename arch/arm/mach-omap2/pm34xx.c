@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/usb/musb.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
@@ -180,6 +181,10 @@ static void omap3_core_save_context(void)
 	/* Save the system control module context, padconf already save above*/
 	omap3_control_save_context();
 	omap_dma_global_context_save();
+#ifndef CONFIG_USB_MUSB_HDRC_MODULE
+	/* Save the MUSB context */
+	musb_save_context();
+#endif
 }
 
 static void omap3_core_restore_context(void)
@@ -191,6 +196,10 @@ static void omap3_core_restore_context(void)
 	/* Restore the interrupt controller context */
 	omap_intc_restore_context();
 	omap_dma_global_context_restore();
+#ifndef CONFIG_USB_MUSB_HDRC_MODULE
+	/* Restore the MUSB context */
+	musb_restore_context();
+#endif
 }
 
 /*
