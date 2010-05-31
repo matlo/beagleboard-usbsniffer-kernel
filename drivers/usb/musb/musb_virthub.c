@@ -67,8 +67,14 @@ static void musb_port_suspend(struct musb *musb, bool do_suspend)
 		musb_writeb(mbase, MUSB_POWER, power);
 
 		/* Needed for OPT A tests */
+#ifdef CONFIG_ARCH_AM35x
+		musb->read_mask &= ~AM3517_READ_ISSUE_POWER;
+#endif
 		power = musb_readb(mbase, MUSB_POWER);
 		while (power & MUSB_POWER_SUSPENDM) {
+#ifdef CONFIG_ARCH_AM35x
+			musb->read_mask &= ~AM3517_READ_ISSUE_POWER;
+#endif
 			power = musb_readb(mbase, MUSB_POWER);
 			if (retries-- < 1)
 				break;
@@ -128,6 +134,9 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 	/* NOTE:  caller guarantees it will turn off the reset when
 	 * the appropriate amount of time has passed
 	 */
+#ifdef CONFIG_ARCH_AM35x
+	musb->read_mask &= ~AM3517_READ_ISSUE_POWER;
+#endif
 	power = musb_readb(mbase, MUSB_POWER);
 	if (do_reset) {
 
@@ -161,6 +170,9 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 		musb->ignore_disconnect = false;
 
+#ifdef CONFIG_ARCH_AM35x
+		musb->read_mask &= ~AM3517_READ_ISSUE_POWER;
+#endif
 		power = musb_readb(mbase, MUSB_POWER);
 		if (power & MUSB_POWER_HSMODE) {
 			DBG(4, "high-speed device connected\n");
