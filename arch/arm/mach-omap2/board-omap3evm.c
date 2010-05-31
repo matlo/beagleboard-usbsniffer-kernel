@@ -713,6 +713,45 @@ static struct regulator_init_data omap3_evm_vpll2 = {
 	.consumer_supplies	= &omap3_evm_vpll2_supply,
 };
 
+/* VAUX2 for USB */
+static struct regulator_consumer_supply omap3evm_vaux2_supplies = {
+	.supply		= "hsusb1",
+};
+
+static struct regulator_init_data omap3evm_vaux2 = {
+	.constraints = {
+		.min_uV		= 1800000,
+		.max_uV		= 1800000,
+		.apply_uV	= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= 1,
+	.consumer_supplies		= &omap3evm_vaux2_supplies,
+};
+
+/* VUSB1V8 */
+static struct regulator_consumer_supply omap3_evm_vusb1v8_supply = {
+	.supply		= "hsusb1",
+};
+
+static struct regulator_init_data omap3_evm_vusb1v8 = {
+	.constraints = {
+		.name			= "VUSB1V8",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vusb1v8_supply,
+};
+
 static struct twl4030_platform_data omap3evm_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -725,6 +764,7 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.codec		= &omap3evm_codec_data,
 	.vdac		= &omap3_evm_vdac,
 	.vpll2		= &omap3_evm_vpll2,
+	.vaux2          = &omap3evm_vaux2,
 };
 
 static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
@@ -874,6 +914,11 @@ static struct omap_musb_board_data musb_board_data = {
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		omap3evm_twldata.vaux2 = &omap3evm_vaux2;
+	else
+		omap3evm_twldata.vusb1v8 = &omap3_evm_vusb1v8;
 
 	if (cpu_is_omap3630())
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
