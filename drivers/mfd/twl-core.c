@@ -788,6 +788,18 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 		child = add_regulator(TWL4030_REG_VAUX4, pdata->vaux4);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VUSB1V5, pdata->vusb1v5);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VUSB1V8, pdata->vusb1v8);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL4030_REG_VUSB3V1, pdata->vusb3v1);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
 	}
 
 	/* twl6030 regulators */

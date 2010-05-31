@@ -603,6 +603,10 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vintana1;
 	struct regulator_init_data		*vintana2;
 	struct regulator_init_data		*vintdig;
+	struct regulator_init_data		*vusb1v5;
+	struct regulator_init_data		*vusb1v8;
+	struct regulator_init_data		*vusb3v1;
+
 	/* TWL6030 LDO regulators */
 	struct regulator_init_data              *vmmc;
 	struct regulator_init_data              *vpp;
