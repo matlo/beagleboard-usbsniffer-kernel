@@ -37,6 +37,7 @@
 #include <plat/control.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/control.h>
 
 #include <media/tvp514x.h>
 #include <media/davinci/vpfe_capture.h>
@@ -585,6 +586,30 @@ static void __init am3517_evm_init_irq(void)
 	omap_gpio_init();
 }
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type         = MUSB_INTERFACE_ULPI,
+	.mode                   = MUSB_OTG,
+	.power                  = 500,
+};
+
+static __init void am3517_evm_musb_init(void)
+{
+	u32 devconf2;
+
+	/*
+	 * Set up USB clock/mode in the DEVCONF2 register.
+	 */
+	devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
+
+	/* USB2.0 PHY reference clock is 13 MHz */
+	devconf2 &= ~(CONF2_REFFREQ | CONF2_OTGMODE);
+	devconf2 |=  CONF2_REFFREQ_13MHZ | CONF2_SESENDEN | CONF2_VBDTCTEN;
+
+	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
+
+	usb_musb_init(&musb_board_data);
+}
+
 static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
 #if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
@@ -604,6 +629,8 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	OMAP3_MUX(GPMC_NCS4, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLDOWN),
+	/* USB OTG DRVVBUS offset = 0x212 */
+	OMAP3_MUX(SAD2D_MCAD23, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -670,6 +697,9 @@ static void __init am3517_evm_init(void)
 				ARRAY_SIZE(am3517evm_i2c1_boardinfo));
 	/*Ethernet*/
 	am3517_evm_ethernet_init(&am3517_evm_emac_pdata);
+
+	/* MUSB */
+	am3517_evm_musb_init();
 
 	clk_add_alias("master", "dm644x_ccdc", "master",
 			&vpfe_capture_dev.dev);

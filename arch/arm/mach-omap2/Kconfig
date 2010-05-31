@@ -84,6 +84,7 @@ config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
+	select ARCH_AM35x
 
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"

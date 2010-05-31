@@ -5,6 +5,14 @@ menu "TI OMAP Implementations"
 config ARCH_OMAP_OTG
 	bool
 
+config ARCH_AM35x
+	bool
+	help
+	  Select this option if your platform is based on AM35x. As
+	  AM35x has an updated MUSB with CPPI4.1 DMA so this config
+	  is introduced to differentiate musb ip between OMAP3x and
+	  AM35x platforms.
+
 choice
 	prompt "OMAP System Type"
 	default ARCH_OMAP2PLUS
