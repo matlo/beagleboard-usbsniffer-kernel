@@ -299,6 +299,32 @@ static inline void phy_off(void)
 	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
 }
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+int cppi41_disable_sched_rx(void)
+{
+	u16 numch = 7, blknum = usb_cppi41_info.dma_block;
+
+	dma_sched_table[0] = 0x02810100;
+	dma_sched_table[1] = 0x830382;
+
+	cppi41_dma_sched_tbl_init(blknum, usb_cppi41_info.q_mgr,
+		dma_sched_table, numch);
+	return 0;
+}
+
+int cppi41_enable_sched_rx(void)
+{
+	u16 numch = 8, blknum = usb_cppi41_info.dma_block;
+
+	dma_sched_table[0] = 0x81018000;
+	dma_sched_table[1] = 0x83038202;
+
+	cppi41_dma_sched_tbl_init(blknum, usb_cppi41_info.q_mgr,
+		dma_sched_table, numch);
+	return 0;
+}
+#endif
+
 /*
  * musb_platform_enable - enable interrupts
  */
