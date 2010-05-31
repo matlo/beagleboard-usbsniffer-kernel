@@ -52,7 +52,7 @@ static void __init usb_musb_pm_init(void)
 {
 	struct device *dev = &dummy_pdev.dev;
 
-	if (!cpu_is_omap34xx())
+	if (!cpu_is_omap34xx() || cpu_is_omap3517() || cpu_is_omap3505())
 		return;
 
 	otg_base = ioremap(OMAP34XX_HSUSB_OTG_BASE, SZ_4K);
@@ -161,7 +161,10 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 		musb_resources[1].start = OMAP44XX_IRQ_HS_USB_MC_N;
 		musb_resources[2].start = OMAP44XX_IRQ_HS_USB_DMA_N;
 	}
-	musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
+	if (cpu_is_omap3517())
+		musb_resources[0].end = musb_resources[0].start + SZ_32K - 1;
+	else
+		musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
 
 	/*
 	 * REVISIT: This line can be removed once all the platforms using
