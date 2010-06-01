@@ -809,6 +809,29 @@ static const struct dev_pm_ops ehci_omap_dev_pm_ops = {
 #define EHCI_OMAP_DEV_PM_OPS NULL
 #endif
 
+/**
+ * ehci_omap_port_handed_over - hand the port out if failed to enable it
+ * @hcd:	Pointer to the usb_hcd device to which the host controller bound
+ * @portnum:	Port number to which the device is attached.
+ *
+ * This function is used as a place to tell the user that the OMAP USB host
+ * controller does support FS/LS devices via HS USB hubs only.
+ */
+static int ehci_omap_port_handed_over(struct usb_hcd *hcd, int portnum)
+{
+	dev_warn(hcd->self.controller, "port %d cannot be enabled\n", portnum);
+
+	dev_warn(hcd->self.controller,
+		"Maybe your device is not a high speed device?\n");
+	dev_warn(hcd->self.controller,
+		"USB host (EHCI) controller does not support full speed "
+		"or low speed device on it's root port.\n");
+	dev_warn(hcd->self.controller,
+		"Please connect full/low speed device via a high speed hub.\n");
+
+	return 0;
+}
+
 static const struct hc_driver ehci_omap_hc_driver;
 
 /* configure so an HC device and id are always provided */
@@ -1091,8 +1114,8 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	.bus_suspend		= ehci_omap_bus_suspend,
 	.bus_resume		= ehci_omap_bus_resume,
 #endif
-	.relinquish_port        = ehci_relinquish_port,
-	.port_handed_over       = ehci_port_handed_over,
+	.relinquish_port        = NULL,
+	.port_handed_over       = ehci_omap_port_handed_over,
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
