@@ -1729,6 +1729,7 @@ reset:
 		hcd->driver->reset_bandwidth(hcd, udev);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(usb_hcd_alloc_bandwidth);
 
 /* Disables the endpoint: synchronizes with the hcd to make sure all
  * endpoint state is gone from hardware.  usb_hcd_flush_endpoint() must

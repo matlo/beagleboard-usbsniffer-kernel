@@ -1119,6 +1119,7 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
 			usb_hcd_disable_endpoint(dev, ep);
 	}
 }
+EXPORT_SYMBOL_GPL(usb_disable_endpoint);
 
 /**
  * usb_reset_endpoint - Reset an endpoint's state.
@@ -1242,6 +1243,7 @@ void usb_enable_endpoint(struct usb_device *dev, struct usb_host_endpoint *ep,
 		dev->ep_in[epnum] = ep;
 	ep->enabled = 1;
 }
+EXPORT_SYMBOL_GPL(usb_enable_endpoint);
 
 /**
  * usb_enable_interface - Enable all the endpoints for an interface
