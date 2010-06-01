@@ -152,7 +152,6 @@ obj-$(CONFIG_VIDEO_CX18) += cx18/
 
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_MEM2MEM_TESTDEV) += mem2mem_testdev.o
-obj-$(CONFIG_VIDEO_MEM2MEM_RESIZER) += omap_resizer.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
 obj-$(CONFIG_VIDEO_OMAP2)		+= omap2cam.o
