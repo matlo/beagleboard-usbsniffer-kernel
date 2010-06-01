@@ -313,6 +313,9 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 				(ifpoint)->extralen, \
 				type, (void **)ptr)
 
+int usb_parse_configuration(struct device *ddev, int cfgidx,
+    struct usb_host_config *config, unsigned char *buffer, int size);
+
 /* ----------------------------------------------------------------------- */
 
 /* USB device number allocation bitmap */
