@@ -313,6 +313,9 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 				(ifpoint)->extralen, \
 				type, (void **)ptr)
 
+extern int usb_parse_configuration(struct device *ddev, int cfgidx,
+    struct usb_host_config *config, unsigned char *buffer, int size);
+
 /* ----------------------------------------------------------------------- */
 
 /* USB device number allocation bitmap */
@@ -1423,6 +1426,12 @@ extern void usb_reset_endpoint(struct usb_device *dev, unsigned int epaddr);
 
 /* this request isn't really synchronous, but it belongs with the others */
 extern int usb_driver_set_configuration(struct usb_device *udev, int config);
+
+/* endpoints enabling/disabling */
+extern void usb_enable_endpoint(struct usb_device *dev,
+				struct usb_host_endpoint *ep, bool reset_ep);
+extern void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr,
+				bool reset_hardware);
 
 /*
  * timeouts, in milliseconds, used for sending/receiving control messages
