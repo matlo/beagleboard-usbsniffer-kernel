@@ -36,7 +36,8 @@
 #include <../drivers/media/video/omap34xxcam.h>
 #include <../drivers/media/video/isp/isp.h>
 #include "mux.h"
-#include "devices.h"
+
+extern struct platform_device omap3isp_device;
 
 /* macro definations */
 #define VIDEO_DEC_SUB_DEVICE	"tvp5146m2"
