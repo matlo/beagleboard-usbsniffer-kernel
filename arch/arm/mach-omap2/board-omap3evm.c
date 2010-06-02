@@ -715,8 +715,15 @@ static struct regulator_init_data omap3_evm_vpll2 = {
 };
 
 /* VAUX2 for USB */
-static struct regulator_consumer_supply omap3evm_vaux2_supplies = {
-	.supply		= "hsusb1",
+static struct regulator_consumer_supply omap3evm_vaux2_supplies[] = {
+	REGULATOR_SUPPLY("VDD_CSIPHY1", "omap3isp"),	/* OMAP ISP */
+	REGULATOR_SUPPLY("VDD_CSIPHY2", "omap3isp"),	/* OMAP ISP */
+	{
+		.supply		= "hsusb1",
+	},
+	{
+		.supply		= "vaux2",
+	}
 };
 
 static struct regulator_init_data omap3evm_vaux2 = {
@@ -729,8 +736,8 @@ static struct regulator_init_data omap3evm_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies		= 1,
-	.consumer_supplies		= &omap3evm_vaux2_supplies,
+	.num_consumer_supplies		= ARRAY_SIZE(omap3evm_vaux2_supplies),
+	.consumer_supplies		= omap3evm_vaux2_supplies,
 };
 
 /* VUSB1V8 */
