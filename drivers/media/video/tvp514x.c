@@ -81,13 +81,15 @@ struct tvp514x_std_info {
 static struct tvp514x_reg tvp514x_reg_list_default[0x40];
 
 static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
+static int tvp514x_set_pad_format(struct v4l2_subdev *sd, unsigned int pad,
+                struct v4l2_mbus_framefmt *fmt, enum v4l2_subdev_format which);
 /**
  * struct tvp514x_decoder - TVP5146/47 decoder object
  * @sd: Subdevice Slave handle
  * @tvp514x_regs: copy of hw's regs with preset values.
  * @pdata: Board specific
  * @ver: Chip version
- * @streaming: TVP5146/47 decoder streaming - enabled or disabled.
+ * @power: TVP5146/47 decoder power - enabled or disabled.
  * @pix: Current pixel format
  * @num_fmts: Number of formats
  * @fmt_list: Format list
@@ -99,11 +101,16 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable);
  */
 struct tvp514x_decoder {
 	struct v4l2_subdev sd;
+	struct media_entity_pad pad;
+
+	struct v4l2_mbus_framefmt formats[2];
+
+	struct tvp514x_reg *init_seq;
 	struct tvp514x_reg tvp514x_regs[ARRAY_SIZE(tvp514x_reg_list_default)];
 	const struct tvp514x_platform_data *pdata;
 
 	int ver;
-	int streaming;
+	int power;
 
 	struct v4l2_pix_format pix;
 	int num_fmts;
@@ -596,6 +603,7 @@ static int tvp514x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
+	struct v4l2_mbus_framefmt format;
 	int err, i;
 
 	for (i = 0; i < decoder->num_stds; i++)
@@ -613,6 +621,11 @@ static int tvp514x_s_std(struct v4l2_subdev *sd, v4l2_std_id std_id)
 	decoder->current_std = i;
 	decoder->tvp514x_regs[REG_VIDEO_STD].val =
 		decoder->std_list[i].video_std;
+
+	/* Change the media bus format accordingly */
+	err = tvp514x_set_pad_format(sd, 0, &format, V4L2_SUBDEV_FORMAT_ACTIVE);
+	if (err)
+		return err;
 
 	v4l2_dbg(1, debug, sd, "Standard set to: %s",
 			decoder->std_list[i].standard.name);
@@ -654,7 +667,7 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
 	 * So power up the TVP514x device here, since it is important to lock
 	 * the signal at this stage.
 	 */
-	if (!decoder->streaming)
+	if (!decoder->power)
 		tvp514x_s_stream(sd, 1);
 
 	input_sel = input;
@@ -1187,57 +1200,76 @@ tvp514x_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
 	return 0;
 }
 
-/**
- * tvp514x_s_stream() - V4L2 decoder i/f handler for s_stream
- * @sd: pointer to standard V4L2 sub-device structure
- * @enable: streaming enable or disable
- *
- * Sets streaming to enable or disable, if possible.
- */
-static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
+static int __tvp514x_enable(struct tvp514x_decoder *decoder, int enable)
 {
 	int err = 0;
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct tvp514x_decoder *decoder = to_decoder(sd);
 
-	if (decoder->streaming == enable)
-		return 0;
-
-	switch (enable) {
-	case 0:
-	{
-		/* Power Down Sequence */
-		err = tvp514x_write_reg(sd, REG_OPERATION_MODE, 0x01);
+	if (enable) {
+		/* Power Up Sequence */
+		err = tvp514x_write_regs(&decoder->sd, decoder->init_seq);
 		if (err) {
-			v4l2_err(sd, "Unable to turn off decoder\n");
+			v4l2_err(&decoder->sd, "Unable to turn on decoder\n");
 			return err;
 		}
-		decoder->streaming = enable;
+	} else {
+		/* Power Down Sequence */
+		err = tvp514x_write_reg(&decoder->sd, REG_OPERATION_MODE, 0x01);
+		if (err) {
+			v4l2_err(&decoder->sd, "Unable to turn off decoder\n");
+			return err;
+		}
+	}
+	return err;
+}
+
+/**
+ * tvp514x_set_power() - V4L2 decoder i/f handler for s_power
+ * @sd: pointer to standard V4L2 sub-device structure
+ * @on: enable or disable power to sub-device
+ *
+ * Sets power to enable or disable, if possible.
+ */
+static int tvp514x_set_power(struct v4l2_subdev *sd, int on)
+{
+	int err = 0;
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+
+	if (decoder->power == on)
+		return 0;
+
+	switch (on) {
+	case 0:
+	{
+		err = __tvp514x_enable(decoder, on);
+		if (err)
+			return err;
+
+		err = decoder->pdata->set_power(sd, on);
+		if (err) {
+			v4l2_err(sd, "Unable to turn off decoder interface\n");
+			return err;
+		}
+		decoder->power = on;
 		break;
 	}
 	case 1:
 	{
-		struct tvp514x_reg *int_seq = (struct tvp514x_reg *)
-				client->driver->id_table->driver_data;
-
-		/* Power Up Sequence */
-		err = tvp514x_write_regs(sd, int_seq);
-		if (err) {
-			v4l2_err(sd, "Unable to turn on decoder\n");
+		err = __tvp514x_enable(decoder, on);
+		if (err)
 			return err;
-		}
+
 		/* Detect if not already detected */
 		err = tvp514x_detect(sd, decoder);
 		if (err) {
 			v4l2_err(sd, "Unable to detect decoder\n");
 			return err;
 		}
-		err = tvp514x_configure(sd, decoder);
+		err = decoder->pdata->set_power(sd, on);
 		if (err) {
-			v4l2_err(sd, "Unable to configure decoder\n");
+			v4l2_err(sd, "Unable to turn on decoder interface\n");
 			return err;
 		}
-		decoder->streaming = enable;
+		decoder->power = on;
 		break;
 	}
 	default:
@@ -1248,11 +1280,140 @@ static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 	return err;
 }
 
+static struct v4l2_mbus_framefmt *
+__tvp514x_get_pad_format(struct tvp514x_decoder *decoder, unsigned int pad,
+		enum v4l2_subdev_format which)
+{
+	if (which != V4L2_SUBDEV_FORMAT_PROBE &&
+			which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return NULL;
+
+	if (pad != 0)
+		return NULL;
+
+	return &decoder->formats[which];
+}
+static int tvp514x_get_pad_format(struct v4l2_subdev *sd, unsigned int pad,
+		struct v4l2_mbus_framefmt *fmt, enum v4l2_subdev_format which)
+{
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+	struct v4l2_mbus_framefmt *format =
+		__tvp514x_get_pad_format(decoder, pad, which);
+
+	if (format == NULL)
+		return -EINVAL;
+
+	*fmt = *format;
+	return 0;
+}
+
+static int tvp514x_set_pad_format(struct v4l2_subdev *sd, unsigned int pad,
+		struct v4l2_mbus_framefmt *fmt, enum v4l2_subdev_format which)
+{
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+	struct v4l2_mbus_framefmt *format =
+		__tvp514x_get_pad_format(decoder, pad, which);
+	int i;
+
+	if (format == NULL)
+		return -EINVAL;
+
+	for(i = 0; i < decoder->num_stds; i++) {
+		struct tvp514x_std_info *std = &decoder->std_list[i];
+
+		if (fmt->width == std->width && fmt->height == std->height)
+			break;
+	}
+
+	if (i == decoder->num_stds)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+	int err = 0;
+
+	if (enable) {
+		err = tvp514x_configure(sd, decoder);
+		if (err) {
+			v4l2_err(sd, "Unable to configure decoder\n");
+			return err;
+		}
+	}
+
+	return err;
+}
+
+static int
+tvp514x_set_config(struct v4l2_subdev *sd, int irq, void *pdata)
+{
+	struct tvp514x_decoder *decoder = to_decoder(sd);
+	struct v4l2_mbus_framefmt *format;
+	v4l2_std_id std_id;
+	int err;
+
+	if (pdata == NULL)
+		return -ENODEV;
+
+	/* Copy board specific information here */
+	decoder->pdata = pdata;
+
+	/**
+	 * Fetch platform specific data, and configure the
+	 * tvp514x_reg_list[] accordingly. Since this is one
+	 * time configuration, no need to preserve.
+	 */
+	decoder->tvp514x_regs[REG_OUTPUT_FORMATTER2].val |=
+		(decoder->pdata->clk_polarity << 1);
+	decoder->tvp514x_regs[REG_SYNC_CONTROL].val |=
+		((decoder->pdata->hs_polarity << 2) |
+		 (decoder->pdata->vs_polarity << 3));
+	/* Set default standard to auto */
+	decoder->tvp514x_regs[REG_VIDEO_STD].val =
+		VIDEO_STD_AUTO_SWITCH_BIT;
+
+	/* Initialize media bus format */
+	format = __tvp514x_get_pad_format(decoder, 0,
+			V4L2_SUBDEV_FORMAT_ACTIVE);
+
+	/* Read the status register to detect standard */
+	err = __tvp514x_enable(decoder, 1);
+	if (err)
+		return err;
+
+	err = tvp514x_s_stream(sd, 1);
+	if (err)
+		return err;
+
+	err = tvp514x_querystd(sd, &std_id);
+	if (!err) {
+		format->width = decoder->std_list[decoder->current_std].width;
+		format->height = decoder->std_list[decoder->current_std].height;
+	} else {
+		/* Fall back to default */
+		format->width = PAL_NUM_ACTIVE_PIXELS;
+		format->height = PAL_NUM_ACTIVE_LINES;
+	}
+	/* We only support YUYV */
+	format->code = V4L2_MBUS_FMT_UYVY16_2X8_BT656;
+
+	err = __tvp514x_enable(decoder, 0);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops tvp514x_core_ops = {
 	.queryctrl = tvp514x_queryctrl,
 	.g_ctrl = tvp514x_g_ctrl,
 	.s_ctrl = tvp514x_s_ctrl,
 	.s_std = tvp514x_s_std,
+	.s_config = tvp514x_set_config,
+	.s_power = tvp514x_set_power,
 };
 
 static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
@@ -1267,13 +1428,20 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_stream = tvp514x_s_stream,
 };
 
+/* V4L2 subdev pad operations */
+static const struct v4l2_subdev_pad_ops tvp514x_pad_ops = {
+	.get_fmt = tvp514x_get_pad_format,
+	.set_fmt = tvp514x_set_pad_format,
+};
+
 static const struct v4l2_subdev_ops tvp514x_ops = {
 	.core = &tvp514x_core_ops,
 	.video = &tvp514x_video_ops,
+	.pad = &tvp514x_pad_ops,
 };
 
 static struct tvp514x_decoder tvp514x_dev = {
-	.streaming = 0,
+	.power = 0,
 
 	.fmt_list = tvp514x_fmt_list,
 	.num_fmts = ARRAY_SIZE(tvp514x_fmt_list),
@@ -1296,6 +1464,10 @@ static struct tvp514x_decoder tvp514x_dev = {
 
 };
 
+/* media-controller operations */
+static const struct media_entity_operations tvp514x_entity_ops = {
+	.set_power = v4l2_subdev_set_power,
+};
 /**
  * tvp514x_probe() - decoder driver i2c probe handler
  * @client: i2c driver client device structure
@@ -1307,6 +1479,7 @@ static struct tvp514x_decoder tvp514x_dev = {
 static int
 tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	int ret;
 	struct tvp514x_decoder *decoder;
 	struct v4l2_subdev *sd;
 
@@ -1329,27 +1502,19 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	memcpy(decoder->tvp514x_regs, tvp514x_reg_list_default,
 			sizeof(tvp514x_reg_list_default));
 
-	/* Copy board specific information here */
-	decoder->pdata = client->dev.platform_data;
-
-	/**
-	 * Fetch platform specific data, and configure the
-	 * tvp514x_reg_list[] accordingly. Since this is one
-	 * time configuration, no need to preserve.
-	 */
-	decoder->tvp514x_regs[REG_OUTPUT_FORMATTER2].val |=
-		(decoder->pdata->clk_polarity << 1);
-	decoder->tvp514x_regs[REG_SYNC_CONTROL].val |=
-		((decoder->pdata->hs_polarity << 2) |
-		 (decoder->pdata->vs_polarity << 3));
-	/* Set default standard to auto */
-	decoder->tvp514x_regs[REG_VIDEO_STD].val =
-		VIDEO_STD_AUTO_SWITCH_BIT;
+	decoder->init_seq = (struct tvp514x_reg *)
+		client->driver->id_table->driver_data;
 
 	/* Register with V4L2 layer as slave device */
 	sd = &decoder->sd;
 	v4l2_i2c_subdev_init(sd, client, &tvp514x_ops);
 
+	/* Register as an entity to media-controller */
+	decoder->pad.type = MEDIA_PAD_TYPE_OUTPUT;
+	decoder->sd.entity.ops = &tvp514x_entity_ops;
+	ret = media_entity_init(&decoder->sd.entity, 1, &decoder->pad, 0);
+	if (ret < 0)
+		v4l2_info(sd, "failed to init media entity\n");
 	v4l2_info(sd, "%s decoder driver registered !!\n", sd->name);
 
 	return 0;
