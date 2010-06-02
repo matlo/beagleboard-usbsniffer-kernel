@@ -53,6 +53,7 @@
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
+#include "sdram-hynix-h8kds0un0mer-4em.h"
 #include "hsmmc.h"
 #include "omap3-opp.h"
 
@@ -844,10 +845,16 @@ static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
 
 static void __init omap3_evm_init_irq(void)
 {
+	struct omap_sdrc_params *sdrc_params;
+
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
+	if (cpu_is_omap3630())
+		sdrc_params = h8kds0un0mer4em_sdrc_params;
+	else
+		sdrc_params = mt46h32m32lf6_sdrc_params;
 	omap3_pm_init_opp_table();
-	omap2_init_common_hw(mt46h32m32lf6_sdrc_params, NULL);
+	omap2_init_common_hw(sdrc_params, NULL);
 	omap_init_irq();
 	omap_gpio_init();
 }
