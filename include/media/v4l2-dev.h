@@ -16,13 +16,16 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 
+#include <media/media-entity.h>
+
 #define VIDEO_MAJOR	81
 
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
 #define VFL_TYPE_RADIO		2
 #define VFL_TYPE_VTX		3
-#define VFL_TYPE_MAX		4
+#define VFL_TYPE_SUBDEV		4
+#define VFL_TYPE_MAX		5
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
@@ -56,6 +59,8 @@ struct v4l2_file_operations {
 
 struct video_device
 {
+	struct media_entity entity;
+
 	/* device ops */
 	const struct v4l2_file_operations *fops;
 
@@ -95,6 +100,8 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 };
 
+#define media_entity_to_video_device(entity) \
+	container_of(entity, struct video_device, entity)
 /* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 

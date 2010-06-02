@@ -858,6 +858,7 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 
 	/* Register with the v4l2_device which increases the module's
 	   use count as well. */
+	sd->initialized = 0;
 	if (v4l2_device_register_subdev(v4l2_dev, sd))
 		sd = NULL;
 	/* Decrease the module use count to match the first try_module_get. */
@@ -872,6 +873,8 @@ struct v4l2_subdev *v4l2_i2c_new_subdev_board(struct v4l2_device *v4l2_dev,
 		if (err && err != -ENOIOCTLCMD) {
 			v4l2_device_unregister_subdev(sd);
 			sd = NULL;
+		} else {
+			sd->initialized = 1;
 		}
 	}
 

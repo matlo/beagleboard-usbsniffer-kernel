@@ -40,7 +40,7 @@ int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
 	 */
 	if (vdev->ioctl_ops && vdev->ioctl_ops->vidioc_subscribe_event)
 		return v4l2_event_init(fh);
-
+	else
 	fh->events = NULL;
 
 	return 0;
