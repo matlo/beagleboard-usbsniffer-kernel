@@ -131,6 +131,7 @@ static inline void omap_init_camera(void)
 {
 }
 #else
+struct platform_device omap3isp_device;
 static inline void omap_init_camera(void)
 {
 }
