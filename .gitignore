@@ -75,3 +75,5 @@ GTAGS
 *.orig
 *~
 \#*#
+
+!.config
