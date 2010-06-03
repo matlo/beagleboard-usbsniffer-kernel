@@ -70,6 +70,12 @@ unsigned int omap_rev(void);
 #define OMAP_REVBITS_20		0x20
 #define OMAP_REVBITS_30		0x30
 #define OMAP_REVBITS_40		0x40
+#define OMAP_REVBITS_50		0x50
+
+/*
+ * Get the CPU Id for OMAP devices
+ */
+#define GET_OMAP_ID()	((omap_rev() >> 16) & 0xffff)
 
 /*
  * Get the CPU revision for OMAP devices
@@ -385,6 +391,12 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP3505_REV(v)		(OMAP35XX_CLASS | (0x3505 << 16) | (v << 8))
 #define OMAP3517_REV(v)		(OMAP35XX_CLASS | (0x3517 << 16) | (v << 8))
 
+#define AM37XX_CLASS		0x37000034
+#define AM3703_REV(v)		(AM37XX_CLASS | (0x3503 << 16) | (v << 8))
+#define AM3715_REV(v)		(AM37XX_CLASS | (0x3515 << 16) | (v << 8))
+#define AM3725_REV(v)		(AM37XX_CLASS | (0x3525 << 16) | (v << 8))
+#define AM3730_REV(v)		(AM37XX_CLASS | (0x3530 << 16) | (v << 8))
+
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	0x44300044
 
@@ -457,5 +469,37 @@ OMAP3_HAS_FEATURE(iva, IVA)
 OMAP3_HAS_FEATURE(neon, NEON)
 OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
+
+/*
+ * Map revision bits to silicon specific revisions
+ */
+#define OMAP34XX_ES_1_0		OMAP_REVBITS_00
+#define OMAP34XX_ES_2_0		OMAP_REVBITS_10
+#define OMAP34XX_ES_2_1		OMAP_REVBITS_20
+#define OMAP34XX_ES_3_0		OMAP_REVBITS_30
+#define OMAP34XX_ES_3_1		OMAP_REVBITS_40
+#define OMAP34XX_ES_3_1_2	OMAP_REVBITS_50
+
+#define AM3517_ES_1_0		OMAP_REVBITS_00
+
+#define OMAP36XX_ES_1_0		OMAP_REVBITS_00
+
+/*
+ * Macros to evaluate CPU revision
+ */
+#define cpu_rev_lt(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() < (rev))) ? 1 : 0)
+
+#define cpu_rev_le(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() <= (rev))) ? 1 : 0)
+
+#define cpu_rev_eq(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() == (rev))) ? 1 : 0)
+
+#define cpu_rev_ge(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() >= (rev))) ? 1 : 0)
+
+#define cpu_rev_gt(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() > (rev))) ? 1 : 0)
 
 #endif
