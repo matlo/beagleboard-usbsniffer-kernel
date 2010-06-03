@@ -405,7 +405,7 @@ skip_to_next_interface_descriptor:
 	return buffer - buffer0 + i;
 }
 
-static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
+int usb_parse_configuration(struct usb_device *dev, int cfgidx,
     struct usb_host_config *config, unsigned char *buffer, int size)
 {
 	struct device *ddev = &dev->dev;
@@ -610,6 +610,7 @@ static int usb_parse_configuration(struct usb_device *dev, int cfgidx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_parse_configuration);
 
 /* hub-only!! ... and only exported for reset/reinit path.
  * otherwise used internally on disconnect/destroy path
