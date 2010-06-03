@@ -211,12 +211,32 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	 * power switch and overcurrent detect
 	 */
 
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
+	if (cpu_is_omap3630()) {
+		/* Power on DVI, Serial and PWR led */
+		gpio_request(gpio + 1, "nDVI_PWR_EN");
+		gpio_direction_output(gpio + 1, 0);
 
-	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+		/* Power on camera interface */
+		gpio_request(gpio + 2, "CAM_EN");
+		gpio_direction_output(gpio + 2, 1);
+
+		/*
+		 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR
+		 * (out, active low)
+		 */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 1);
+	} else {
+		gpio_request(gpio + 1, "EHCI_nOC");
+		gpio_direction_input(gpio + 1);
+
+		/*
+		 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR
+		 * (out, active low)
+		 */
+		gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
+		gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	}
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
