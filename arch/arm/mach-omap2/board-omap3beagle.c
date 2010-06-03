@@ -337,6 +337,10 @@ static struct twl4030_codec_data beagle_codec_data = {
 	.audio = &beagle_audio_data,
 };
 
+static struct twl4030_madc_platform_data beagle_madc_data = {
+	.irq_line	= 1,
+};
+
 static struct twl4030_platform_data beagle_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -345,6 +349,7 @@ static struct twl4030_platform_data beagle_twldata = {
 	.usb		= &beagle_usb_data,
 	.gpio		= &beagle_gpio_data,
 	.codec		= &beagle_codec_data,
+	.madc		= &beagle_madc_data,
 	.vmmc1		= &beagle_vmmc1,
 	.vsim		= &beagle_vsim,
 	.vdac		= &beagle_vdac,
