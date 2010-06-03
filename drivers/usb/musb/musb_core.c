@@ -1068,7 +1068,7 @@ static void musb_shutdown(struct platform_device *pdev)
 #if defined(CONFIG_USB_TUSB6010) || \
 	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
 	|| defined(CONFIG_ARCH_OMAP4)
-static ushort __initdata fifo_mode = 4;
+static ushort __initdata fifo_mode = 5;
 #else
 static ushort __initdata fifo_mode = 2;
 #endif
