@@ -1975,7 +1975,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl,
 		(plat->mode == MUSB_HOST) ? "host" : "peripheral");
 	break;
 #endif
+#ifndef CONFIG_USB_MUSB_OTG
 bad_config:
+#endif
 	default:
 		dev_err(dev, "incompatible Kconfig role setting\n");
 		status = -EINVAL;
