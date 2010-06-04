@@ -1089,9 +1089,11 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 	enable_clocks(1);
 	dsi_enable_pll_clock(1);
 
-	r = regulator_enable(dsi.vdds_dsi_reg);
-	if (r)
-		goto err0;
+	if (!cpu_is_omap3517() && !cpu_is_omap3505()) {
+		r = regulator_enable(dsi.vdds_dsi_reg);
+		if (r)
+			goto err0;
+	}
 
 	/* XXX PLL does not come out of reset without this... */
 	dispc_pck_free_enable(1);
@@ -1124,7 +1126,8 @@ int dsi_pll_init(struct omap_dss_device *dssdev, bool enable_hsclk,
 
 	return 0;
 err1:
-	regulator_disable(dsi.vdds_dsi_reg);
+	if (!cpu_is_omap3517() && !cpu_is_omap3505())
+		regulator_disable(dsi.vdds_dsi_reg);
 err0:
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);
@@ -1138,7 +1141,8 @@ void dsi_pll_uninit(void)
 
 	dsi.pll_locked = 0;
 	dsi_pll_power(DSI_PLL_POWER_OFF);
-	regulator_disable(dsi.vdds_dsi_reg);
+	if (!cpu_is_omap3517() && !cpu_is_omap3505())
+		regulator_disable(dsi.vdds_dsi_reg);
 	DSSDBG("PLL uninit done\n");
 }
 
@@ -3309,12 +3313,14 @@ int dsi_init(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
-	if (IS_ERR(dsi.vdds_dsi_reg)) {
-		iounmap(dsi.base);
-		DSSERR("can't get VDDS_DSI regulator\n");
-		r = PTR_ERR(dsi.vdds_dsi_reg);
-		goto err2;
+	if (!cpu_is_omap3517() && !cpu_is_omap3505()) {
+		dsi.vdds_dsi_reg = dss_get_vdds_dsi();
+		if (IS_ERR(dsi.vdds_dsi_reg)) {
+			iounmap(dsi.base);
+			DSSERR("can't get VDDS_DSI regulator\n");
+			r = PTR_ERR(dsi.vdds_dsi_reg);
+			goto err2;
+		}
 	}
 
 	enable_clocks(1);

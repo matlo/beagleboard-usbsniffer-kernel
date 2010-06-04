@@ -163,7 +163,8 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
-	if (cpu_is_omap34xx()) {
+	if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
+			cpu_is_omap34xx()) {
 		r = regulator_enable(dpi.vdds_dsi_reg);
 		if (r)
 			goto err1;
@@ -199,7 +200,8 @@ err3:
 #endif
 err2:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
-	if (cpu_is_omap34xx())
+	if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
+			cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
 err1:
 	omap_dss_stop_device(dssdev);
@@ -220,7 +222,8 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	if (cpu_is_omap34xx())
+	if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
+			cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
 
 	omap_dss_stop_device(dssdev);
@@ -304,7 +307,8 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 
 int dpi_init(struct platform_device *pdev)
 {
-	if (cpu_is_omap34xx()) {
+	if (!cpu_is_omap3517() && !cpu_is_omap3505() &&
+		cpu_is_omap34xx()) {
 		dpi.vdds_dsi_reg = dss_get_vdds_dsi();
 		if (IS_ERR(dpi.vdds_dsi_reg)) {
 			DSSERR("can't get VDDS_DSI regulator\n");
