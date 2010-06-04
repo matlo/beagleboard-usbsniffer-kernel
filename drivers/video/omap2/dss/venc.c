@@ -400,12 +400,21 @@ static const struct venc_config *venc_timings_to_config(
 	BUG();
 }
 
-static void venc_power_on(struct omap_dss_device *dssdev)
+static int venc_power_on(struct omap_dss_device *dssdev)
 {
 	u32 l;
+	int r = 0;
 
 	venc_enable_clocks(1);
 
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+        dss_clk_enable(DSS_CLK_FCK2);
+        r = dsi_pll_init(dssdev, 1, 1);
+	if (r) {
+		DSSERR("failed in dsi_pll_init\n");
+		goto err;
+	}
+#endif
 	venc_reset();
 	venc_write_config(venc_timings_to_config(&dssdev->panel.timings));
 
@@ -434,6 +443,15 @@ static void venc_power_on(struct omap_dss_device *dssdev)
 		dssdev->platform_enable(dssdev);
 
 	dssdev->manager->enable(dssdev->manager);
+
+	return r;
+
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+err:
+	venc_enable_clocks(0);
+
+	return r;
+#endif
 }
 
 static void venc_power_off(struct omap_dss_device *dssdev)
@@ -449,6 +467,10 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	if (!cpu_is_omap3517() && !cpu_is_omap3505())
 		regulator_disable(venc.vdda_dac_reg);
 
+#ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
+	dsi_pll_uninit();
+	dss_clk_disable(DSS_CLK_FCK2);
+#endif
 	venc_enable_clocks(0);
 }
 
@@ -487,7 +509,9 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 			goto err2;
 	}
 
-	venc_power_on(dssdev);
+	r = venc_power_on(dssdev);
+	if (r)
+		goto err2;
 
 	venc.wss_data = 0;
 
