@@ -496,6 +496,9 @@ OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 #define cpu_rev_eq(cpu,rev)	\
 	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() == (rev))) ? 1 : 0)
 
+#define cpu_rev_ne(cpu,rev)	\
+	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() != (rev))) ? 1 : 0)
+
 #define cpu_rev_ge(cpu,rev)	\
 	((cpu_is_omap ##cpu() && (GET_OMAP_REVISION() >= (rev))) ? 1 : 0)
 
