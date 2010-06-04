@@ -392,10 +392,10 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP3517_REV(v)		(OMAP35XX_CLASS | (0x3517 << 16) | (v << 8))
 
 #define AM37XX_CLASS		0x37000034
-#define AM3703_REV(v)		(AM37XX_CLASS | (0x3503 << 16) | (v << 8))
-#define AM3715_REV(v)		(AM37XX_CLASS | (0x3515 << 16) | (v << 8))
-#define AM3725_REV(v)		(AM37XX_CLASS | (0x3525 << 16) | (v << 8))
-#define AM3730_REV(v)		(AM37XX_CLASS | (0x3530 << 16) | (v << 8))
+#define AM3703_REV(v)		(AM37XX_CLASS | (0x3703 << 16) | (v << 8))
+#define AM3715_REV(v)		(AM37XX_CLASS | (0x3715 << 16) | (v << 8))
+#define DM3725_REV(v)		(AM37XX_CLASS | (0x3725 << 16) | (v << 8))
+#define DM3730_REV(v)		(AM37XX_CLASS | (0x3730 << 16) | (v << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	0x44300044
