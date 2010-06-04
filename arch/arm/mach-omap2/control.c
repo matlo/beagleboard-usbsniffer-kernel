@@ -219,8 +219,12 @@ void omap3_save_scratchpad_contents(void)
 
 	/* Populate the Scratchpad contents */
 	scratchpad_contents.boot_config_ptr = 0x0;
-	if (omap_rev() != OMAP3430_REV_ES3_0 &&
-					omap_rev() != OMAP3430_REV_ES3_1)
+
+	if (cpu_is_omap3630() || cpu_is_omap3505() || cpu_is_omap3517())
+		scratchpad_contents.public_restore_ptr =
+			virt_to_phys(get_es3_restore_pointer());
+	else if (cpu_rev_ne(34xx, OMAP34XX_ES_3_0)
+			&& cpu_rev_ne(34xx, OMAP34XX_ES_3_1))
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(get_restore_pointer());
 	else
@@ -281,7 +285,9 @@ void omap3_save_scratchpad_contents(void)
 	 * of AUTO_CNT = 1 prior to any transition to OFF mode.
 	 */
 	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)
-			&& (omap_rev() >= OMAP3430_REV_ES3_0))
+		&& (cpu_is_omap3630()
+			|| cpu_is_omap3505() || cpu_is_omap3517()
+			|| cpu_rev_ge(34xx, OMAP34XX_ES_3_0)))
 		sdrc_block_contents.power = (sdrc_read_reg(SDRC_POWER) &
 				~(SDRC_POWER_AUTOCOUNT_MASK|
 				SDRC_POWER_CLKCTRL_MASK)) |

@@ -612,7 +612,9 @@ static int __init pm_dbg_init(void)
 
 	/* Only enable for >= ES2.1 . Going to 0V on anything under
 	 * ES2.1 will eventually cause a crash */
-	if (omap_rev() > OMAP3430_REV_ES2_0)
+	if (cpu_is_omap3630()
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_rev_gt(34xx, OMAP34XX_ES_2_0))
 		(void) debugfs_create_file("voltage_off_while_idle",
 					   S_IRUGO | S_IWUGO, d,
 					   &voltage_off_while_idle,

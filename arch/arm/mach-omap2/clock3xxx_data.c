@@ -3502,7 +3502,7 @@ int __init omap3xxx_clk_init(void)
 		 * Update this if there are further clock changes between ES2
 		 * and production parts
 		 */
-		if (omap_rev() == OMAP3430_REV_ES1_0) {
+		if (cpu_rev_eq(3430, OMAP34XX_ES_1_0)) {
 			/* No 3430ES1-only rates exist, so no RATE_IN_3430ES1 */
 			cpu_clkflg |= CK_3430ES1;
 		} else {
@@ -3590,7 +3590,9 @@ int __init omap3xxx_clk_init(void)
 	/*
 	 * Lock DPLL5 and put it in autoidle.
 	 */
-	if (omap_rev() >= OMAP3430_REV_ES2_0)
+	if (cpu_is_omap3630()
+		|| cpu_is_omap3505() || cpu_is_omap3517()
+		|| cpu_rev_ge(34xx, OMAP34XX_ES_2_0))
 		omap3_clk_lock_dpll5();
 
 	/* Avoid sleeping during omap3_core_dpll_m2_set_rate() */
