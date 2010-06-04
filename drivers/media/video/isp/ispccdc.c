@@ -400,7 +400,7 @@ static int ispccdc_config_black_clamp(struct isp_ccdc_device *ccdc,
 		isp_reg_writel(isp, bclamp_val,
 			       OMAP3_ISP_IOMEM_CCDC, ISPCCDC_CLAMP);
 	} else {
-		if (omap_rev() < OMAP3430_REV_ES2_0)
+		if (cpu_rev_lt(34xx, OMAP34XX_ES_2_0))
 			if (ccdc->syncif_ipmod == YUV16 ||
 			    ccdc->syncif_ipmod == YUV8 ||
 			    isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCDC,
