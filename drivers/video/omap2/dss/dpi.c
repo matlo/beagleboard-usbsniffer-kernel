@@ -212,7 +212,8 @@ EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
-	dssdev->manager->disable(dssdev->manager);
+	if (dssdev && dssdev->manager && dssdev->manager->disable)
+		dssdev->manager->disable(dssdev->manager);
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
