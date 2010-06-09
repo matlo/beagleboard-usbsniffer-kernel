@@ -205,6 +205,7 @@ static int __init omap3evm_camera_hw_init(void)
 /*
  * VPFE - Video Decoder interface
  */
+#if 0
 #define TVP514X_STD_ALL		(V4L2_STD_NTSC | V4L2_STD_PAL)
 
 /* Inputs available at the TVP5146 */
@@ -222,7 +223,7 @@ static struct v4l2_input tvp5146_inputs[] = {
 		.std    = TVP514X_STD_ALL,
 	},
 };
-
+#endif
 
 static struct isp_platform_data omap3evm_isp_platform_data = {
 	.parallel = {
