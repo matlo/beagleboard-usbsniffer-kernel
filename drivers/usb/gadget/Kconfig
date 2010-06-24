@@ -853,6 +853,15 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+config USB_G_PROXY
+	tristate "Proxy Gadget (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	default n
+	help
+	  This option enables a proxy gadget, that forwards transfers to
+	  a USB device.
+
+	  (FIXME: fill that...)
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
