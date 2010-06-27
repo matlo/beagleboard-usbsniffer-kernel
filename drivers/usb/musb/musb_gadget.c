@@ -898,8 +898,13 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
 	tmp = le16_to_cpu(desc->wMaxPacketSize);
-	if (tmp & ~0x07ff)
+	if (tmp & ~0x07ff) {
+		pr_debug("%s periph: cannot enable %s: high bandwidth"
+			" wMaxPacketSize (%08x)\n",
+			musb_driver_name, musb_ep->end_point.name,
+			tmp);
 		goto fail;
+	}
 	musb_ep->packet_sz = tmp;
 
 	/* enable the interrupts for the endpoint, set the endpoint
@@ -911,10 +916,19 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 1;
-		if (!musb_ep->is_in)
+		if (!musb_ep->is_in) {
+			pr_debug("%s periph: cannot enable %s: wrong"
+				"direction (!musb_ep->is_in)\n",
+				musb_driver_name, musb_ep->end_point.name);
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_tx)
+		}
+		if (tmp > hw_ep->max_packet_sz_tx) {
+			pr_debug("%s periph: cannot enable %s: "
+				"wMaxPacketSize (%d) > %d",
+				musb_driver_name, musb_ep->end_point.name,
+				tmp, hw_ep->max_packet_sz_tx);
 			goto fail;
+		}
 
 		int_txe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRTXE, int_txe);
@@ -941,10 +955,19 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 0;
-		if (musb_ep->is_in)
+		if (musb_ep->is_in) {
+			pr_debug("%s periph: cannot enable %s: wrong"
+				"direction (musb_ep->is_in)\n",
+				musb_driver_name, musb_ep->end_point.name);
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_rx)
+		}
+		if (tmp > hw_ep->max_packet_sz_rx) {
+			pr_debug("%s periph: cannot enable %s: "
+				"wMaxPacketSize (%d) > %d",
+				musb_driver_name, musb_ep->end_point.name,
+				tmp, hw_ep->max_packet_sz_rx);
 			goto fail;
+		}
 
 		int_rxe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRRXE, int_rxe);

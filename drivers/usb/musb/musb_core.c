@@ -1176,6 +1176,37 @@ static struct musb_fifo_cfg __initdata mode_5_cfg[] = {
 { .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 4096, },
 };
 
+/* mode 6 - fits in 8KB, useful for webcam */
+static struct musb_fifo_cfg __initdata mode_6_cfg[] = {
+{ .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 1024, },
+{ .hw_ep_num =  1, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  2, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  2, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  3, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  3, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  4, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  4, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  5, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  5, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  6, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  6, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  7, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  7, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  8, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  8, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num =  9, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num =  9, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num = 10, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num = 10, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num = 11, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num = 11, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num = 12, .style = FIFO_TX,   .maxpacket = 32, },
+{ .hw_ep_num = 12, .style = FIFO_RX,   .maxpacket = 32, },
+{ .hw_ep_num = 13, .style = FIFO_RXTX, .maxpacket = 32, },
+{ .hw_ep_num = 14, .style = FIFO_RXTX, .maxpacket = 32, },
+{ .hw_ep_num = 15, .style = FIFO_RXTX, .maxpacket = 32, },
+};
+
 /*
  * configure a fifo; for non-shared endpoints, this may be called
  * once for a tx fifo and once for an rx fifo.
@@ -1266,6 +1297,8 @@ static int __init ep_config_from_table(struct musb *musb)
 	int			offset;
 	struct musb_hw_ep	*hw_ep = musb->endpoints;
 
+#if 0
+	/* FIXME: Where's that coming from?!?!? */
 	if (musb->config->fifo_mode) {
 		fifo_mode = musb->config->fifo_mode;
 	} else if (musb->config->fifo_cfg) {
@@ -1273,6 +1306,7 @@ static int __init ep_config_from_table(struct musb *musb)
 		n = musb->config->fifo_cfg_size;
 		goto done;
 	}
+#endif
 
 	switch (fifo_mode) {
 	default:
@@ -1301,6 +1335,10 @@ static int __init ep_config_from_table(struct musb *musb)
 	case 5:
 		cfg = mode_5_cfg;
 		n = ARRAY_SIZE(mode_5_cfg);
+		break;
+	case 6:
+		cfg = mode_6_cfg;
+		n = ARRAY_SIZE(mode_6_cfg);
 		break;
 	}
 
