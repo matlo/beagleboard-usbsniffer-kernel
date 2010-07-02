@@ -569,7 +569,7 @@ musb_read_setup(struct musb *musb, struct usb_ctrlrequest *req)
 	/* NOTE:  earlier 2.6 versions changed setup packets to host
 	 * order, but now USB packets always stay in USB byte order.
 	 */
-	DBG(3, "SETUP req%02x.%02x v%04x i%04x l%d\n",
+	DBG(13, "SETUP req%02x.%02x v%04x i%04x l%d\n",
 		req->bRequestType,
 		req->bRequest,
 		le16_to_cpu(req->wValue),
@@ -637,7 +637,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 	csr = musb_readw(regs, MUSB_CSR0);
 	len = musb_readb(regs, MUSB_COUNT0);
 
-	DBG(4, "csr %04x, count %d, myaddr %d, ep0stage %s\n",
+	DBG(14, "csr %04x, count %d, myaddr %d, ep0stage %s\n",
 			csr, len,
 			musb_readb(mbase, MUSB_FADDR),
 			decode_ep0stage(musb->ep0_state));
@@ -817,7 +817,7 @@ setup:
 				break;
 			}
 
-			DBG(3, "handled %d, csr %04x, ep0stage %s\n",
+			DBG(13, "handled %d, csr %04x, ep0stage %s\n",
 				handled, csr,
 				decode_ep0stage(musb->ep0_state));
 
@@ -923,7 +923,7 @@ musb_g_ep0_queue(struct usb_ep *e, struct usb_request *r, gfp_t gfp_flags)
 	/* add request to the list */
 	list_add_tail(&(req->request.list), &(ep->req_list));
 
-	DBG(3, "queue to %s (%s), length=%d\n",
+	DBG(13, "queue to %s (%s), length=%d\n",
 			ep->name, ep->is_in ? "IN/TX" : "OUT/RX",
 			req->request.length);
 
