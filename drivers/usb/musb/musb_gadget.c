@@ -282,13 +282,13 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			(int)(request->length - request->actual));
 
 	if (csr & MUSB_TXCSR_TXPKTRDY) {
-		DBG(5, "%s old packet still ready , txcsr %03x\n",
+		DBG(4, "%s old packet still ready , txcsr %03x\n",
 				musb_ep->end_point.name, csr);
 		return;
 	}
 
 	if (csr & MUSB_TXCSR_P_SENDSTALL) {
-		DBG(5, "%s stalling, txcsr %03x\n",
+		DBG(4, "%s stalling, txcsr %03x\n",
 				musb_ep->end_point.name, csr);
 		return;
 	}
@@ -360,6 +360,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 							| MUSB_TXCSR_MODE);
 
 				csr &= ~MUSB_TXCSR_P_UNDERRUN;
+				DBG(3, "DMA: Writing TXCSR %04x (%d)\n", csr,
+					musb_ep->dma->desired_mode);
 				musb_writew(epio, MUSB_TXCSR, csr);
 			}
 		}
@@ -443,7 +445,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 	request = next_request(musb_ep);
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	DBG(4, "<== %s, txcsr %04x\n", musb_ep->end_point.name, csr);
+	DBG(3, "<== %s, txcsr %04x (%p)\n", musb_ep->end_point.name, csr, request);
 
 	dma = is_dma_capable() ? musb_ep->dma : NULL;
 
@@ -490,7 +492,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			if (request->actual == request->length)
 				is_dma = 1;
 
-			DBG(4, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
+			DBG(1, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
 				epnum, csr, musb_ep->dma->actual_len, request);
 		}
 
@@ -518,7 +520,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 				if (csr & MUSB_TXCSR_TXPKTRDY)
 					return;
 
-				DBG(4, "sending zero pkt (zero=%d, length=%d,"
+				DBG(1, "sending zero pkt (zero=%d, length=%d,"
 					" actual=%d, dma->desired_mode=%d)\n",
 					request->zero, request->length,
 					request->actual, dma->desired_mode);
@@ -539,16 +541,23 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			 */
 			musb_ep_select(mbase, epnum);
 			csr = musb_readw(epio, MUSB_TXCSR);
-			if (csr & MUSB_TXCSR_FIFONOTEMPTY)
+			DBG(3, "After giveback %s, txcsr %04x\n",
+				musb_ep->end_point.name, csr);
+			if (csr & MUSB_TXCSR_FIFONOTEMPTY) {
+				DBG(3, "After giveback %s, fifo not empty\n",
+					musb_ep->end_point.name);
 				return;
+			}
 
 			request = musb_ep->desc ? next_request(musb_ep) : NULL;
 			if (!request) {
-				DBG(4, "%s idle now\n",
+				DBG(3, "%s idle now\n",
 					musb_ep->end_point.name);
 				return;
 			}
 		}
+
+		DBG(3, "Calling txstate (%p)\n", request);
 
 		txstate(musb, to_musb_request(request));
 	}
@@ -898,8 +907,13 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
 	tmp = le16_to_cpu(desc->wMaxPacketSize);
-	if (tmp & ~0x07ff)
+	if (tmp & ~0x07ff) {
+		pr_debug("%s periph: cannot enable %s: high bandwidth"
+			" wMaxPacketSize (%08x)\n",
+			musb_driver_name, musb_ep->end_point.name,
+			tmp);
 		goto fail;
+	}
 	musb_ep->packet_sz = tmp;
 
 	/* enable the interrupts for the endpoint, set the endpoint
@@ -911,10 +925,19 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 1;
-		if (!musb_ep->is_in)
+		if (!musb_ep->is_in) {
+			pr_debug("%s periph: cannot enable %s: wrong"
+				"direction (!musb_ep->is_in)\n",
+				musb_driver_name, musb_ep->end_point.name);
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_tx)
+		}
+		if (tmp > hw_ep->max_packet_sz_tx) {
+			pr_debug("%s periph: cannot enable %s: "
+				"wMaxPacketSize (%d) > %d",
+				musb_driver_name, musb_ep->end_point.name,
+				tmp, hw_ep->max_packet_sz_tx);
 			goto fail;
+		}
 
 		int_txe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRTXE, int_txe);
@@ -941,10 +964,19 @@ static int musb_gadget_enable(struct usb_ep *ep,
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 0;
-		if (musb_ep->is_in)
+		if (musb_ep->is_in) {
+			pr_debug("%s periph: cannot enable %s: wrong"
+				"direction (musb_ep->is_in)\n",
+				musb_driver_name, musb_ep->end_point.name);
 			goto fail;
-		if (tmp > hw_ep->max_packet_sz_rx)
+		}
+		if (tmp > hw_ep->max_packet_sz_rx) {
+			pr_debug("%s periph: cannot enable %s: "
+				"wMaxPacketSize (%d) > %d",
+				musb_driver_name, musb_ep->end_point.name,
+				tmp, hw_ep->max_packet_sz_rx);
 			goto fail;
+		}
 
 		int_rxe |= (1 << epnum);
 		musb_writew(mbase, MUSB_INTRRXE, int_rxe);
