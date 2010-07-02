@@ -282,13 +282,13 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			(int)(request->length - request->actual));
 
 	if (csr & MUSB_TXCSR_TXPKTRDY) {
-		DBG(5, "%s old packet still ready , txcsr %03x\n",
+		DBG(4, "%s old packet still ready , txcsr %03x\n",
 				musb_ep->end_point.name, csr);
 		return;
 	}
 
 	if (csr & MUSB_TXCSR_P_SENDSTALL) {
-		DBG(5, "%s stalling, txcsr %03x\n",
+		DBG(4, "%s stalling, txcsr %03x\n",
 				musb_ep->end_point.name, csr);
 		return;
 	}
@@ -360,6 +360,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 							| MUSB_TXCSR_MODE);
 
 				csr &= ~MUSB_TXCSR_P_UNDERRUN;
+				DBG(3, "DMA: Writing TXCSR %04x (%d)\n", csr,
+					musb_ep->dma->desired_mode);
 				musb_writew(epio, MUSB_TXCSR, csr);
 			}
 		}
@@ -443,7 +445,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 	request = next_request(musb_ep);
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	DBG(4, "<== %s, txcsr %04x\n", musb_ep->end_point.name, csr);
+	DBG(3, "<== %s, txcsr %04x (%p)\n", musb_ep->end_point.name, csr, request);
 
 	dma = is_dma_capable() ? musb_ep->dma : NULL;
 
@@ -490,7 +492,7 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			if (request->actual == request->length)
 				is_dma = 1;
 
-			DBG(4, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
+			DBG(1, "TXCSR%d %04x, DMA off, len %zu, req %p\n",
 				epnum, csr, musb_ep->dma->actual_len, request);
 		}
 
@@ -519,11 +521,12 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 				if (csr & MUSB_TXCSR_TXPKTRDY)
 					return;
 
-				DBG(4, "sending zero pkt (zero=%d, length=%d, actual=%d, "
+				DBG(1, "sending zero pkt (zero=%d, length=%d, actual=%d, "
 					"dma->desired_mode=%d)\n",
 					request->zero, request->length, request->actual,
 					dma->desired_mode);
 				musb_writew(epio, MUSB_TXCSR, csr | MUSB_TXCSR_TXPKTRDY);
+
 				request->zero = 0;
 			}
 
@@ -539,16 +542,23 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			 */
 			musb_ep_select(mbase, epnum);
 			csr = musb_readw(epio, MUSB_TXCSR);
-			if (csr & MUSB_TXCSR_FIFONOTEMPTY)
+			DBG(3, "After giveback %s, txcsr %04x\n",
+				musb_ep->end_point.name, csr);
+			if (csr & MUSB_TXCSR_FIFONOTEMPTY) {
+				DBG(3, "After giveback %s, fifo not empty\n",
+					musb_ep->end_point.name);
 				return;
+			}
 
 			request = musb_ep->desc ? next_request(musb_ep) : NULL;
 			if (!request) {
-				DBG(4, "%s idle now\n",
+				DBG(3, "%s idle now\n",
 					musb_ep->end_point.name);
 				return;
 			}
 		}
+
+		DBG(3, "Calling txstate (%p)\n", request);
 
 		txstate(musb, to_musb_request(request));
 	}

@@ -326,7 +326,7 @@ static void configure_channel(struct dma_channel *channel,
 	u8 use_sdma = (musb_channel->sysdma_channel == -1) ? 0 : 1;
 	u16 csr = 0;
 
-	DBG(4, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
+	DBG(2, "%p, pkt_sz %d, addr 0x%x, len %d, mode %d\n",
 			channel, packet_sz, dma_addr, len, mode);
 
 	if (buffer_is_aligned && (packet_sz >= 512) &&
@@ -529,6 +529,10 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 
 				channel->status = MUSB_DMA_STATUS_FREE;
 
+				DBG(1, "devctl=%x, transmit=%d, mode=%d %d-%d\n",
+					devctl, musb_channel->transmit, channel->desired_mode,
+					channel->actual_len, musb_channel->max_packet_sz);
+
 				/* completed */
 				if ((musb_channel->transmit)
 					&& (
@@ -540,6 +544,8 @@ static irqreturn_t dma_controller_irq(int irq, void *private_data)
 					int offset = MUSB_EP_OFFSET(epnum,
 								    MUSB_TXCSR);
 					u16 txcsr;
+
+					DBG(3, "DMA setting TXPKTRDY\n");
 
 					/*
 					 * The programming guide says that we

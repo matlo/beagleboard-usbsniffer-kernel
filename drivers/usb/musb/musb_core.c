@@ -118,8 +118,8 @@ struct musb *gb_musb;
 unsigned short musb_clock_on = 1;
 #endif
 
-unsigned musb_debug;
-module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
+int musb_debug;
+module_param_named(debug, musb_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
@@ -244,7 +244,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 
 	prefetch((u8 *)src);
 
-	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
+	DBG(hw_ep->epnum == 0 ? 14 : 4, "%cX ep%d fifo %p count %d buf %p\n",
 			'T', hw_ep->epnum, fifo, len, src);
 
 	/* we can't assume unaligned reads work */
@@ -283,7 +283,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 {
 	void __iomem *fifo = hw_ep->fifo;
 
-	DBG(4, "%cX ep%d fifo %p count %d buf %p\n",
+	DBG(hw_ep->epnum == 0 ? 14 : 4, "%cX ep%d fifo %p count %d buf %p\n",
 			'R', hw_ep->epnum, fifo, len, dst);
 
 	/* we can't assume unaligned writes work */
@@ -474,7 +474,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	void __iomem	*mbase = musb->mregs;
 #endif
 
-	DBG(3, "<== Power=%02x, DevCtl=%02x, int_usb=0x%x\n", power, devctl,
+	DBG(5, "<== Power=%02x, DevCtl=%02x, int_usb=0x%x\n", power, devctl,
 		int_usb);
 
 	/* in host mode, the peripheral may issue remote wakeup.
@@ -1616,7 +1616,7 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 	power = musb_readb(musb->mregs, MUSB_POWER);
 
-	DBG(4, "** IRQ %s usb%04x tx%04x rx%04x\n",
+	DBG(((musb->int_tx & 1) ? 14 : 4), "** IRQ %s usb%04x tx%04x rx%04x\n",
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
 
