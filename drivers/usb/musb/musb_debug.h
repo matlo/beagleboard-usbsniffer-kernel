@@ -48,9 +48,9 @@
 				__func__, __LINE__ , ## args); \
 	} } while (0)
 
-extern unsigned musb_debug;
+extern int musb_debug;
 
-static inline int _dbg_level(unsigned l)
+static inline int _dbg_level(int l)
 {
 	return musb_debug >= l;
 }
