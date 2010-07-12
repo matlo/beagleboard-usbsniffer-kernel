@@ -495,17 +495,22 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 		}
 
 		if (is_dma || request->actual == request->length) {
+#ifdef CONFIG_USB_INVENTRA_DMA
+			if (is_dma && (!dma->desired_mode ||
+					((request->actual %
+						musb_ep->packet_sz) != 0))) {
+				DBG(4, "Flushing FIFO...\n");
+				musb_writew(epio, MUSB_TXCSR, csr | MUSB_TXCSR_FLUSHFIFO);
+				return;
+			}
+#endif
+
 			/*
 			 * First, maybe a terminating short packet. Some DMA
 			 * engines might handle this by themselves.
 			 */
 			if ((request->zero && request->length
 				&& request->length % musb_ep->packet_sz == 0)
-#ifdef CONFIG_USB_INVENTRA_DMA
-				|| (is_dma && (!dma->desired_mode ||
-					(request->actual &
-						(musb_ep->packet_sz - 1))))
-#endif
 			) {
 				/*
 				 * On DMA completion, FIFO may not be
@@ -514,9 +519,11 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 				if (csr & MUSB_TXCSR_TXPKTRDY)
 					return;
 
-				DBG(4, "sending zero pkt\n");
-				musb_writew(epio, MUSB_TXCSR, MUSB_TXCSR_MODE
-						| MUSB_TXCSR_TXPKTRDY);
+				DBG(4, "sending zero pkt (zero=%d, length=%d, actual=%d, "
+					"dma->desired_mode=%d)\n",
+					request->zero, request->length, request->actual,
+					dma->desired_mode);
+				musb_writew(epio, MUSB_TXCSR, csr | MUSB_TXCSR_TXPKTRDY);
 				request->zero = 0;
 			}
 
