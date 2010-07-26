@@ -1069,7 +1069,15 @@ static ushort __initdata fifo_mode = 2;
 
 /* "modprobe ... fifo_mode=1" etc */
 module_param(fifo_mode, ushort, 0);
-MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
+MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration mode");
+
+/* Fine-tune FIFO configuration: fifo_config=ep1in:512,ep2in:512,... */
+static char* __initdata fifo_config[32];
+static int __initdata fifo_config_count;
+module_param_array(fifo_config, charp, &fifo_config_count, 0);
+MODULE_PARM_DESC(fifo_config, "initial endpoint configuration");
+
+static struct musb_fifo_cfg __initdata param_cfg[32];
 
 /*
  * tables defining fifo_mode values.  define more if you like.
@@ -1266,6 +1274,65 @@ static int __init ep_config_from_table(struct musb *musb)
 	int			offset;
 	struct musb_hw_ep	*hw_ep = musb->endpoints;
 
+	/* There is a fifo_config kernel parameter. */
+	if (fifo_config_count > 0) {
+		char *str, *str2;
+
+		printk(KERN_DEBUG "%s: %d FIFO endpoints\n",
+			musb_driver_name, fifo_config_count);
+		
+		n = fifo_config_count;
+
+		for (i = 0; i < n; i++) {
+			printk(KERN_DEBUG "%s: FIFO %d: %s\n",
+				musb_driver_name, i, fifo_config[i]);
+
+			if (strncmp(fifo_config[i], "ep", 2))
+				goto invalid;
+
+			param_cfg[i].hw_ep_num =
+				simple_strtoul(fifo_config[i]+2, &str, 10);
+
+			if (str == fifo_config[i] + 2)
+				goto invalid;
+
+			if (!strncmp(str, "in:", 3)) {
+				param_cfg[i].style = FIFO_TX;
+				str += 3;
+			} else if (!strncmp(str, "out:", 4)) {
+				param_cfg[i].style = FIFO_RX;
+				str += 4;
+			} else {
+				goto invalid;
+			}
+
+			param_cfg[i].maxpacket = simple_strtoul(str, &str2, 10);
+
+			if (str2 == str || *str2 != 0)
+				goto invalid;
+
+			param_cfg[i].mode = 0;
+
+			printk(KERN_DEBUG "%s: ep:%d, dir:%s, packet size:%d\n",
+				musb_driver_name, param_cfg[i].hw_ep_num,
+				param_cfg[i].style == FIFO_TX ? "TX" : "RX",
+				param_cfg[i].maxpacket);
+		}
+
+		cfg = param_cfg;
+		goto done;
+
+invalid:
+		pr_debug("%s: invalid FIFO configuration: %s\n",
+			musb_driver_name, fifo_config[i]);
+		return -EINVAL;
+	}
+
+#if 0
+	/* 
+	 * FIXME: This code ignores fifo_mode parameter to the module
+	 * if musb->config->fifo_mode is set, this is not correct.
+	 */
 	if (musb->config->fifo_mode) {
 		fifo_mode = musb->config->fifo_mode;
 	} else if (musb->config->fifo_cfg) {
@@ -1273,6 +1340,7 @@ static int __init ep_config_from_table(struct musb *musb)
 		n = musb->config->fifo_cfg_size;
 		goto done;
 	}
+#endif
 
 	switch (fifo_mode) {
 	default:
