@@ -210,7 +210,7 @@ static void handle_set_conf_intf(struct work_struct *work);
 /*-------------------------------------------------------------------------*/
 /* Gadget side of the driver */
 
-#define NBUFFER 8
+#define NBUFFER 1
 
 /* Allocate and free proxy_request (blob of urb+request) */
 static struct proxy_request*
@@ -962,7 +962,7 @@ static int bridge_endpoint(struct usb_gadget *gadget,
 
 	INIT_LIST_HEAD(&dev->eps[n]->req_list);
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < 2; i++) {
 		preq = proxy_req_alloc(dev->eps[n], GFP_KERNEL, false);
 		if (!preq) {
 			status = -ENOMEM;
